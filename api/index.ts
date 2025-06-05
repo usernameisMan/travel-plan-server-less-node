@@ -1,5 +1,12 @@
+import 'dotenv/config';
 import express from "express";
+import { checkJwt, handleAuthError } from './middleware/auth';
+
 const app = express();
+
+// 应用 Auth0 中间件到所有路由
+app.use(checkJwt);
+app.use(handleAuthError);
 
 app.get("/", (req, res) => res.send("Express on Vercel !!!!!"));
 
