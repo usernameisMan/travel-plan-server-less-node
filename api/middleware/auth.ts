@@ -4,7 +4,7 @@ import jwksRsa from 'jwks-rsa';
 // Auth0 config
 const auth0Config = {
   domain: process.env.AUTH0_DOMAIN || 'dev-jm3p0fl7ukqun2o5.us.auth0.com',
-  audience: process.env.AUTH0_AUDIENCE || 'https://dev-jm3p0fl7ukqun2o5.us.auth0.com/api/v2/',
+  audience: process.env.AUTH0_AUDIENCE || 'https://travel-plan-api',
 };
 
 // JWT verification middleware
