@@ -2,6 +2,7 @@ import "reflect-metadata";
 import "dotenv/config";
 import express, { Express } from "express";
 import { checkJwt, handleAuthError, extractUser } from "./middleware/auth";
+import { requestLoggingMiddleware, errorLoggingMiddleware } from "./middleware/logging";
 import packetsRouter from "./packets";
 import { initializeDatabase } from "../lib/data-source";
 
@@ -16,6 +17,9 @@ initializeDatabase().catch((error) => {
 // Body parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// 请求日志中间件 - 必须在其他中间件之前
+app.use(requestLoggingMiddleware);
 
 // CORS configuration
 app.use((req, res, next) => {
@@ -60,6 +64,9 @@ app.get("/user/profile", (req, res) => {
 
 // 注册packets路由
 app.use("/api/packets", packetsRouter);
+
+// 错误日志中间件 - 必须在所有路由之后
+app.use(errorLoggingMiddleware);
 
 app.listen(3000, () => console.log("Server ready on port 3000 with TypeORM."));
 

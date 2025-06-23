@@ -88,7 +88,8 @@ router.get('/:id', async (req: Request, res: Response) => {
 router.post('/', validationMiddleware(CreatePacketDto), async (req: Request, res: Response) => {
   try {
     const userId = req.user?.sub;
-    const { name, description, cost, currencyCode } = req.body;
+    const { name, description, cost, currencyCode, itineraryDays } = req.body;
+    
     
     if (!userId) {
       return res.status(401).json(new PacketErrorResponseDto('用户未认证'));

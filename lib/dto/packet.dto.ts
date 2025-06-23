@@ -1,5 +1,37 @@
-import { IsString, IsOptional, IsDecimal, IsNotEmpty, Length } from "class-validator";
+import { IsString, IsOptional, IsDecimal, IsNotEmpty, Length, IsObject, IsArray } from "class-validator";
 import { Transform } from "class-transformer";
+
+
+export class TrackDto {
+  @IsString({ message: "type必须是字符串" })
+  type: string;
+
+  @IsObject({ message: "location必须是对象" })
+  location: {
+    lng: string;
+    lat: string;
+  };
+
+  @IsString({ message: "title必须是字符串" })
+  title: string;
+
+  @IsString({ message: "description必须是字符串" })
+  description: string;
+}
+
+export class ItineraryDayDto {
+  @IsString({ message: "day必须是字符串" })
+  day: string;
+
+  @IsString({ message: "dayText必须是字符串" })
+  dayText: string;
+
+  @IsString({ message: "description必须是字符串" })
+  description: string;
+
+  @IsArray({ message: "tracks必须是数组" })
+  tracks: TrackDto[];
+}
 
 export class CreatePacketDto {
   @IsNotEmpty({ message: "packet名称不能为空" })
@@ -21,6 +53,10 @@ export class CreatePacketDto {
   @IsString({ message: "货币代码必须是字符串" })
   @Length(3, 3, { message: "货币代码必须是3个字符" })
   currencyCode?: string;
+
+  @IsNotEmpty({ message: "ItineraryDayDto不能为空" })
+  @IsArray({ message: "ItineraryDayDto必须是数组" })
+  itineraryDays: ItineraryDayDto[];
 }
 
 export class UpdatePacketDto {
