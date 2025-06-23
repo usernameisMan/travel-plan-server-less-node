@@ -29,15 +29,25 @@ export const checkJwt = auth({
 });
 
 // Middleware to extract user information from JWT
-export const extractUser = (req: Request, res: any, next: any) => {
+export const extractUser = async (req: Request, res: any, next: any) => {
+  const accessToken = req.headers.authorization?.split(" ")[1];
+  const response = await fetch(
+    "https://dev-jm3p0fl7ukqun2o5.us.auth0.com/userinfo",
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }
+  );
+  const userInfo = (await response.json()) as { [key: string]: any };
+
   try {
     // The JWT payload is available in req.auth
     if (req.auth?.payload) {
       req.user = {
         sub: req.auth.payload.sub as string, // This is the user ID
-        email: req.auth.payload.email as string,
-        name: req.auth.payload.name as string,
-        ...req.auth.payload
+        email: userInfo.email as string,
+        nickname: userInfo.nickname as string,
+        ...req.auth.payload,
+        ...userInfo,
       };
     }
     next();

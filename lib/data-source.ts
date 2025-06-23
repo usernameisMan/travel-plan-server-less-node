@@ -13,7 +13,7 @@ import { User } from "./entities/User";
 
 export const AppDataSource = new DataSource({
   type: "postgres",
-  url: process.env.DATABASE_URL,
+  url: "postgresql://neondb_owner:npg_TwHXdMoGNP60@ep-white-poetry-a88pnguq-pooler.eastus2.azure.neon.tech/travel-plan?sslmode=require",
   synchronize: false, // 在生产环境中设置为 false
   logging: process.env.NODE_ENV === "development",
   entities: [
