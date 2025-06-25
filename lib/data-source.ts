@@ -14,7 +14,7 @@ import { User } from "./entities/User";
 export const AppDataSource = new DataSource({
   type: "postgres",
   url: "postgresql://neondb_owner:npg_TwHXdMoGNP60@ep-white-poetry-a88pnguq-pooler.eastus2.azure.neon.tech/travel-plan?sslmode=require",
-  synchronize: false, // 在生产环境中设置为 false
+  synchronize: false, // Set to false in production environment
   logging: process.env.NODE_ENV === "development",
   entities: [
     Packet,
@@ -33,15 +33,15 @@ export const AppDataSource = new DataSource({
   ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
 });
 
-// 初始化数据源
+// Initialize data source
 export const initializeDatabase = async () => {
   try {
     if (!AppDataSource.isInitialized) {
       await AppDataSource.initialize();
-      console.log("数据库连接已初始化");
+      console.log("Database connection initialized successfully");
     }
   } catch (error) {
-    console.error("数据库连接初始化失败:", error);
+    console.error("Database connection initialization failed:", error);
     throw error;
   }
 }; 

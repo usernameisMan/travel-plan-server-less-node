@@ -21,7 +21,7 @@ export class PacketFavorites {
   @CreateDateColumn({ name: "created_at", type: "timestamp" })
   createdAt: Date;
 
-  // 关联关系 - 使用字符串引用避免循环依赖
+  // Relationship - using string reference to avoid circular dependency
   @ManyToOne("Packet", "favorites")
   @JoinColumn({ name: "packet_id" })
   packet: any;

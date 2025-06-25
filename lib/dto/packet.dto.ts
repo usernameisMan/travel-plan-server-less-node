@@ -10,12 +10,12 @@ import { Transform } from "class-transformer";
 
 
 export class LocationDto {
-  @IsString({ message: "经度必须是字符串" })
-  @IsNotEmpty({ message: "经度不能为空" })
+  @IsString({ message: "Longitude must be a string" })
+  @IsNotEmpty({ message: "Longitude cannot be empty" })
   lng: string;
 
-  @IsString({ message: "纬度必须是字符串" })
-  @IsNotEmpty({ message: "纬度不能为空" })
+  @IsString({ message: "Latitude must be a string" })
+  @IsNotEmpty({ message: "Latitude cannot be empty" })
   lat: string;
 }
 
@@ -24,16 +24,16 @@ export class MarkerDto {
   @IsString({ message: "id must is string" })
   id?: string;
 
-  @IsString({ message: "type必须是字符串" })
+  @IsString({ message: "Type must be a string" })
   type: string;
 
-  @IsObject({ message: "location必须是对象" })
+  @IsObject({ message: "Location must be an object" })
   location: LocationDto
 
-  @IsString({ message: "title必须是字符串" })
+  @IsString({ message: "Title must be a string" })
   title: string;
 
-  @IsString({ message: "description必须是字符串" })
+  @IsString({ message: "Description must be a string" })
   description: string;
 }
 
@@ -42,16 +42,16 @@ export class ItineraryDayDto {
   @IsString({ message: "id must is string" })
   id?: string;
 
-  @IsString({ message: "day必须是字符串" })
+  @IsString({ message: "Day must be a string" })
   day: string;
 
-  @IsString({ message: "dayText必须是字符串" })
+  @IsString({ message: "Day text must be a string" })
   dayText: string;
 
-  @IsString({ message: "description必须是字符串" })
+  @IsString({ message: "Description must be a string" })
   description: string;
 
-  @IsArray({ message: "tracks必须是数组" })
+  @IsArray({ message: "Tracks must be an array" })
   markers: MarkerDto[];
 }
 
@@ -60,28 +60,28 @@ export class CreatePacketDto {
   @IsString({ message: "id must is string" })
   id?: string;
 
-  @IsNotEmpty({ message: "packet名称不能为空" })
-  @IsString({ message: "packet名称必须是字符串" })
-  @Length(1, 255, { message: "packet名称长度必须在1-255个字符之间" })
+  @IsNotEmpty({ message: "Packet name cannot be empty" })
+  @IsString({ message: "Packet name must be a string" })
+  @Length(1, 255, { message: "Packet name length must be between 1-255 characters" })
   name: string;
 
   @IsOptional()
-  @IsString({ message: "描述必须是字符串" })
-  @Length(0, 1000, { message: "描述长度不能超过1000个字符" })
+  @IsString({ message: "Description must be a string" })
+  @Length(0, 1000, { message: "Description length cannot exceed 1000 characters" })
   description?: string;
 
   @IsOptional()
-  @IsString({ message: "费用必须是字符串格式的数字" })
+  @IsString({ message: "Cost must be a string format number" })
   @Transform(({ value }) => value?.toString())
   cost?: string;
 
   @IsOptional()
-  @IsString({ message: "货币代码必须是字符串" })
-  @Length(3, 3, { message: "货币代码必须是3个字符" })
+  @IsString({ message: "Currency code must be a string" })
+  @Length(3, 3, { message: "Currency code must be 3 characters" })
   currencyCode?: string;
 
-  @IsNotEmpty({ message: "ItineraryDayDto不能为空" })
-  @IsArray({ message: "ItineraryDayDto必须是数组" })
+  @IsNotEmpty({ message: "ItineraryDayDto cannot be empty" })
+  @IsArray({ message: "ItineraryDayDto must be an array" })
   itineraryDays: ItineraryDayDto[];
 }
 
@@ -92,23 +92,23 @@ export class UpdatePacketDto {
   id?: string;
 
   @IsOptional()
-  @IsString({ message: "packet名称必须是字符串" })
-  @Length(1, 255, { message: "packet名称长度必须在1-255个字符之间" })
+  @IsString({ message: "Packet name must be a string" })
+  @Length(1, 255, { message: "Packet name length must be between 1-255 characters" })
   name?: string;
 
   @IsOptional()
-  @IsString({ message: "描述必须是字符串" })
-  @Length(0, 1000, { message: "描述长度不能超过1000个字符" })
+  @IsString({ message: "Description must be a string" })
+  @Length(0, 1000, { message: "Description length cannot exceed 1000 characters" })
   description?: string;
 
   @IsOptional()
-  @IsString({ message: "费用必须是字符串格式的数字" })
+  @IsString({ message: "Cost must be a string format number" })
   @Transform(({ value }) => value?.toString())
   cost?: string;
 
   @IsOptional()
-  @IsString({ message: "货币代码必须是字符串" })
-  @Length(3, 3, { message: "货币代码必须是3个字符" })
+  @IsString({ message: "Currency code must be a string" })
+  @Length(3, 3, { message: "Currency code must be 3 characters" })
   currencyCode?: string;
 }
 
@@ -140,7 +140,7 @@ export class PacketListResponseDto {
   count: number;
   message: string;
 
-  constructor(packets: any[], message: string = "获取packets成功") {
+  constructor(packets: any[], message: string = "Packets retrieved successfully") {
     this.success = true;
     this.data = packets.map((packet) => new PacketResponseDto(packet));
     this.count = packets.length;

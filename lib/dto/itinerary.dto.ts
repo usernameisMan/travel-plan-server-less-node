@@ -10,23 +10,23 @@ import { Type, Transform } from "class-transformer";
 import { ItineraryDayDto } from "./packet.dto";
 
 export class CreatePacketWithItineraryDto {
-  @IsNotEmpty({ message: "packet名称不能为空" })
-  @IsString({ message: "packet名称必须是字符串" })
+  @IsNotEmpty({ message: "Packet name cannot be empty" })
+  @IsString({ message: "Packet name must be a string" })
   name: string;
 
   @IsOptional()
-  @IsString({ message: "描述必须是字符串" })
+  @IsString({ message: "Description must be a string" })
   description?: string;
 
   @IsOptional()
-  @IsString({ message: "费用必须是字符串格式的数字" })
+  @IsString({ message: "Cost must be a string format number" })
   cost?: string;
 
   @IsOptional()
-  @IsString({ message: "货币代码必须是字符串" })
+  @IsString({ message: "Currency code must be a string" })
   currencyCode?: string;
 
-  @IsArray({ message: "行程数据必须是数组" })
+  @IsArray({ message: "Itinerary data must be an array" })
   @ValidateNested({ each: true })
   @Type(() => ItineraryDayDto)
   itinerary: ItineraryDayDto[];

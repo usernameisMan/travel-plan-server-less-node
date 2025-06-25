@@ -1,35 +1,35 @@
-# Packets API 文档
+# Packets API Documentation
 
-## 概述
+## Overview
 
-Packets API 提供了对用户旅行包（packets）的完整CRUD操作。所有端点都需要用户认证。
+The Packets API provides complete CRUD operations for user travel packages (packets). All endpoints require user authentication.
 
-## 认证
+## Authentication
 
-所有请求都需要在请求头中包含有效的 JWT token：
+All requests must include a valid JWT token in the request headers:
 
 ```
-Authorization: Bearer <your-jwt-token>
+Authorization: Bearer your-jwt-token
 ```
 
-## 端点
+## Endpoints
 
-### 1. 获取当前用户的所有packets
+### 1. Get All Packets for Current User
 
 **GET** `/api/packets`
 
-获取当前认证用户创建的所有packets。
+Get all packets created by the current authenticated user.
 
-**响应示例：**
+**Response Example:**
 ```json
 {
   "success": true,
   "data": [
     {
       "id": 1,
-      "name": "东京之旅",
+      "name": "Tokyo Trip",
       "userId": "auth0|123456789",
-      "description": "精彩的东京旅行计划",
+      "description": "Amazing Tokyo travel plan",
       "cost": "1500.00",
       "currencyCode": "USD",
       "createdAt": "2024-01-01T00:00:00.000Z",
@@ -37,140 +37,140 @@ Authorization: Bearer <your-jwt-token>
     }
   ],
   "count": 1,
-  "message": "获取用户packets成功"
+  "message": "Packets retrieved successfully"
 }
 ```
 
-### 2. 获取特定packet详情
+### 2. Get Specific Packet Details
 
 **GET** `/api/packets/:id`
 
-获取特定packet的详细信息。只能获取属于当前用户的packet。
+Get detailed information for a specific packet. Can only access packets belonging to the current user.
 
-**参数：**
-- `id` (路径参数): packet的ID
+**Parameters:**
+- `id` (path parameter): Packet ID
 
-**响应示例：**
+**Response Example:**
 ```json
 {
   "success": true,
   "data": {
     "id": 1,
-    "name": "东京之旅",
+    "name": "Tokyo Trip",
     "userId": "auth0|123456789",
-    "description": "精彩的东京旅行计划",
+    "description": "Amazing Tokyo travel plan",
     "cost": "1500.00",
     "currencyCode": "USD",
     "createdAt": "2024-01-01T00:00:00.000Z",
     "updatedAt": "2024-01-01T00:00:00.000Z"
   },
-  "message": "获取packet详情成功"
+  "message": "Packet details retrieved successfully"
 }
 ```
 
-### 3. 创建新的packet
+### 3. Create New Packet
 
 **POST** `/api/packets`
 
-创建新的packet。
+Create a new packet.
 
-**请求体：**
+**Request Body:**
 ```json
 {
-  "name": "巴黎之旅",
-  "description": "浪漫的巴黎旅行计划",
+  "name": "Paris Trip",
+  "description": "Romantic Paris travel plan",
   "cost": "2000.00",
   "currencyCode": "USD"
 }
 ```
 
-**必需字段：**
-- `name`: packet名称
+**Required Fields:**
+- `name`: Packet name
 
-**可选字段：**
-- `description`: 描述
-- `cost`: 费用
-- `currencyCode`: 货币代码（默认：USD）
+**Optional Fields:**
+- `description`: Description
+- `cost`: Cost
+- `currencyCode`: Currency code (default: USD)
 
-**响应示例：**
+**Response Example:**
 ```json
 {
   "success": true,
   "data": {
     "id": 2,
-    "name": "巴黎之旅",
+    "name": "Paris Trip",
     "userId": "auth0|123456789",
-    "description": "浪漫的巴黎旅行计划",
+    "description": "Romantic Paris travel plan",
     "cost": "2000.00",
     "currencyCode": "USD",
     "createdAt": "2024-01-01T00:00:00.000Z",
     "updatedAt": "2024-01-01T00:00:00.000Z"
   },
-  "message": "packet创建成功"
+  "message": "Packet created successfully"
 }
 ```
 
-### 4. 更新packet
+### 4. Update Packet
 
 **PUT** `/api/packets/:id`
 
-更新现有的packet。只能更新属于当前用户的packet。
+Update an existing packet. Can only update packets belonging to the current user.
 
-**参数：**
-- `id` (路径参数): packet的ID
+**Parameters:**
+- `id` (path parameter): Packet ID
 
-**请求体：**
+**Request Body:**
 ```json
 {
-  "name": "更新后的巴黎之旅",
-  "description": "更新后的描述",
+  "name": "Updated Paris Trip",
+  "description": "Updated description",
   "cost": "2500.00",
   "currencyCode": "EUR"
 }
 ```
 
-**响应示例：**
+**Response Example:**
 ```json
 {
   "success": true,
   "data": {
     "id": 2,
-    "name": "更新后的巴黎之旅",
+    "name": "Updated Paris Trip",
     "userId": "auth0|123456789",
-    "description": "更新后的描述",
+    "description": "Updated description",
     "cost": "2500.00",
     "currencyCode": "EUR",
     "createdAt": "2024-01-01T00:00:00.000Z",
     "updatedAt": "2024-01-01T12:00:00.000Z"
   },
-  "message": "packet更新成功"
+  "message": "Packet updated successfully"
 }
 ```
 
-### 5. 删除packet
+### 5. Delete Packet
 
 **DELETE** `/api/packets/:id`
 
-删除packet。只能删除属于当前用户的packet。
+Delete a packet. Can only delete packets belonging to the current user.
 
-**参数：**
-- `id` (路径参数): packet的ID
+**Parameters:**
+- `id` (path parameter): Packet ID
 
-**响应示例：**
+**Response Example:**
 ```json
 {
   "success": true,
-  "message": "packet删除成功"
+  "message": "Packet deleted successfully"
 }
 ```
 
-## 错误响应
+## Error Responses
 
 ### 401 Unauthorized
 ```json
 {
   "success": false,
-  "message": "用户未认证"
+  "message": "User not authenticated"
 }
 ```
 
@@ -178,7 +178,7 @@ Authorization: Bearer <your-jwt-token>
 ```json
 {
   "success": false,
-  "message": "packet名称是必需的"
+  "message": "Packet name is required"
 }
 ```
 
@@ -186,7 +186,7 @@ Authorization: Bearer <your-jwt-token>
 ```json
 {
   "success": false,
-  "message": "packet不存在或无权限访问"
+  "message": "Packet not found or access denied"
 }
 ```
 
@@ -194,50 +194,50 @@ Authorization: Bearer <your-jwt-token>
 ```json
 {
   "success": false,
-  "message": "服务器内部错误"
+  "message": "Internal server error"
 }
 ```
 
-## 使用示例
+## Usage Examples
 
-### 使用 curl 测试
+### Using curl for Testing
 
 ```bash
-# 获取所有packets
+# Get all packets
 curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
      http://localhost:3000/api/packets
 
-# 创建新packet
+# Create new packet
 curl -X POST \
      -H "Authorization: Bearer YOUR_JWT_TOKEN" \
      -H "Content-Type: application/json" \
-     -d '{"name": "东京之旅", "description": "精彩旅程"}' \
+     -d '{"name": "Tokyo Trip", "description": "Amazing journey"}' \
      http://localhost:3000/api/packets
 
-# 获取特定packet
+# Get specific packet
 curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
      http://localhost:3000/api/packets/1
 
-# 更新packet
+# Update packet
 curl -X PUT \
      -H "Authorization: Bearer YOUR_JWT_TOKEN" \
      -H "Content-Type: application/json" \
-     -d '{"name": "更新后的东京之旅"}' \
+     -d '{"name": "Updated Tokyo Trip"}' \
      http://localhost:3000/api/packets/1
 
-# 删除packet
+# Delete packet
 curl -X DELETE \
      -H "Authorization: Bearer YOUR_JWT_TOKEN" \
      http://localhost:3000/api/packets/1
 ```
 
-### 使用 JavaScript/Fetch
+### Using JavaScript/Fetch
 
 ```javascript
 const token = 'YOUR_JWT_TOKEN';
 const baseUrl = 'http://localhost:3000/api/packets';
 
-// 获取所有packets
+// Get all packets
 const getPackets = async () => {
   const response = await fetch(baseUrl, {
     headers: {
@@ -247,7 +247,7 @@ const getPackets = async () => {
   return response.json();
 };
 
-// 创建新packet
+// Create new packet
 const createPacket = async (packetData) => {
   const response = await fetch(baseUrl, {
     method: 'POST',
@@ -260,19 +260,19 @@ const createPacket = async (packetData) => {
   return response.json();
 };
 
-// 使用示例
+// Usage example
 getPackets().then(data => console.log(data));
 createPacket({
-  name: '东京之旅',
-  description: '精彩旅程',
+  name: 'Tokyo Trip',
+  description: 'Amazing journey',
   cost: '1500.00'
 }).then(data => console.log(data));
 ```
 
-## 注意事项
+## Important Notes
 
-1. **用户隔离**: 每个用户只能访问自己创建的packets
-2. **数据验证**: 所有输入都会进行验证
-3. **错误处理**: 所有操作都有适当的错误处理
-4. **类型安全**: 使用TypeScript确保类型安全
-5. **数据库事务**: 所有数据库操作都是安全的 
+1. **User Isolation**: Each user can only access their own created packets
+2. **Data Validation**: All inputs are validated
+3. **Error Handling**: All operations have proper error handling
+4. **Type Safety**: TypeScript ensures type safety
+5. **Database Transactions**: All database operations are safe 

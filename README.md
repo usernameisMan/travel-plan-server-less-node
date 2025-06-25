@@ -1,205 +1,198 @@
-# Travel Plan Server - TypeORM Edition
+# Travel Plan Server
 
-基于 TypeORM 的旅行计划服务器，提供用户认证和 packets 管理功能。
+A travel plan server based on TypeORM, providing user authentication and packet management functionality.
 
-## 🚀 技术栈
+## 🚀 Tech Stack
 
-- **框架**: Express.js + TypeScript
+- **Framework**: Express.js + TypeScript
 - **ORM**: TypeORM
-- **数据库**: PostgreSQL
-- **认证**: Auth0 JWT
-- **验证**: class-validator + class-transformer
-- **包管理**: pnpm
+- **Database**: PostgreSQL
+- **Authentication**: Auth0 JWT
+- **Validation**: class-validator + class-transformer
+- **Package Manager**: pnpm
 
-## 📁 项目结构
+## 📁 Project Structure
 
 ```
-├── api/                    # API 路由
-│   ├── middleware/         # 中间件
-│   │   ├── auth.ts        # Auth0 认证中间件
-│   │   └── validation.ts  # DTO 验证中间件
-│   ├── packets.ts         # Packets API 路由
-│   └── index.ts           # 应用入口
-├── lib/                   # 核心库
-│   ├── entities/          # TypeORM 实体
+travel-plan-server-less-node/
+├── api/                    # API routes
+│   ├── middleware/         # Middleware
+│   │   ├── auth.ts        # Auth0 authentication middleware
+│   │   └── validation.ts  # DTO validation middleware
+│   ├── packets.ts         # Packets API routes
+│   └── index.ts           # Application entry point
+├── lib/                   # Core library
+│   ├── entities/          # TypeORM entities
 │   │   ├── Packet.ts
 │   │   ├── ItineraryDay.ts
 │   │   ├── Marker.ts
+│   │   ├── User.ts
 │   │   ├── Orders.ts
 │   │   ├── PacketFavorites.ts
 │   │   ├── PacketPurchase.ts
 │   │   ├── PaymentLog.ts
 │   │   ├── RefundLog.ts
-│   │   ├── SellerPayout.ts
-│   │   └── User.ts
-│   ├── dto/               # 数据传输对象
-│   │   └── packet.dto.ts
-│   └── data-source.ts     # TypeORM 数据源配置
-├── docs/                  # 文档
-│   ├── packets-api.md     # Packets API 文档
-│   ├── user-authentication.md # 用户认证文档
-│   └── typeorm-migration.md   # TypeORM 迁移文档
-└── dist/                  # 编译输出
+│   │   └── SellerPayout.ts
+│   ├── dto/               # Data Transfer Objects
+│   │   ├── packet.dto.ts
+│   │   └── itinerary.dto.ts
+│   └── data-source.ts     # TypeORM data source configuration
+├── docs/                  # Documentation
+│   ├── packets-api.md     # Packets API documentation
+│   ├── user-authentication.md # User authentication documentation
+│   └── typeorm-migration.md   # TypeORM migration documentation
+└── dist/                  # Build output
 ```
 
-## 🛠️ 安装和运行
+## 🛠️ Installation and Setup
 
-### 环境要求
+### Prerequisites
 
-- Node.js 18+
-- pnpm
-- PostgreSQL 数据库
+- Node.js >= 16
+- pnpm >= 8
+- PostgreSQL database
 
-### 安装依赖
+### Install Dependencies
 
 ```bash
 pnpm install
 ```
 
-### 环境变量
+### Environment Variables
 
-创建 `.env` 文件：
+Create a `.env` file:
 
 ```env
-DATABASE_URL=postgresql://username:password@localhost:5432/database_name
-AUTH0_DOMAIN=your-auth0-domain.auth0.com
-AUTH0_AUDIENCE=https://your-api-audience
-NODE_ENV=development
+AUTH0_AUDIENCE=your-auth0-audience
+AUTH0_ISSUER_BASE_URL=your-auth0-issuer-base-url
 ```
 
-### 运行项目
+### Run the Project
 
 ```bash
-# 开发模式
+# Development mode
 pnpm dev
 
-# 构建项目
+# Build project
 pnpm build
 
-# 生产模式
+# Production mode
 pnpm start
 ```
 
-## 🔐 认证
+## 🔐 Authentication
 
-项目使用 Auth0 进行用户认证。所有 API 请求都需要在请求头中包含有效的 JWT token：
+The project uses Auth0 for user authentication. All API requests must include a valid JWT token in the request headers:
 
 ```
-Authorization: Bearer <your-jwt-token>
+Authorization: Bearer your-jwt-token
 ```
 
-在路由处理函数中，可以通过 `req.user?.sub` 获取当前用户 ID：
+In route handler functions, you can get the current user ID via `req.user?.sub`:
 
 ```typescript
-app.get('/api/some-route', (req, res) => {
-  const userId = req.user?.sub; // 获取当前用户ID
-  // ... 处理逻辑
-});
+const userId = req.user?.sub; // Get current user ID
+// ... processing logic
 ```
 
-## 📊 数据库
+## 📊 Database
 
-### 实体关系
+### Entity Relationships
 
-- **Packet**: 旅行包主实体
-- **ItineraryDay**: 行程日程
-- **Marker**: 地图标记
-- **User**: 用户信息
-- **Orders**: 订单信息
-- **PacketFavorites**: 收藏的旅行包
-- **PacketPurchase**: 购买记录
-- **PaymentLog**: 支付日志
-- **RefundLog**: 退款日志
-- **SellerPayout**: 卖家结算
+- **Packet**: Main travel package entity
+- **ItineraryDay**: Itinerary schedule
+- **Marker**: Map markers
+- **User**: User information
+- **Orders**: Order information
+- **PacketFavorites**: Favorite travel packages
+- **PacketPurchase**: Purchase records
+- **PaymentLog**: Payment logs
+- **RefundLog**: Refund logs
+- **SellerPayout**: Seller payouts
 
-### 数据库操作示例
+### Database Operation Examples
 
 ```typescript
-// 获取 Repository
+// Get Repository
 const packetRepository = AppDataSource.getRepository(Packet);
 
-// 查询用户的所有 packets
-const packets = await packetRepository.find({
+// Query all packets for a user
+const userPackets = await packetRepository.find({
   where: { userId },
-  order: { createdAt: 'DESC' }
+  order: { createdAt: "DESC" }
 });
 ```
 
-## 🎯 API 端点
+## 🎯 API Endpoints
 
-### Packets API
+### Travel Packages
 
-- `GET /api/packets` - 获取当前用户的所有 packets
-- `GET /api/packets/:id` - 获取特定 packet 详情
-- `POST /api/packets` - 创建新 packet
-- `PUT /api/packets/:id` - 更新 packet
-- `DELETE /api/packets/:id` - 删除 packet
+- `GET /api/packets` - Get all packets for current user
+- `GET /api/packets/:id` - Get specific packet details
+- `POST /api/packets` - Create new packet
+- `PUT /api/packets/:id` - Update packet
+- `DELETE /api/packets/:id` - Delete packet
 
-### 用户信息
+### User Information
 
-- `GET /user/profile` - 获取当前用户信息
+- `GET /user/profile` - Get current user information
 
-## ✅ 数据验证
+## ✅ Data Validation
 
-使用 DTO (Data Transfer Object) 进行请求数据验证：
-
-```typescript
-export class CreatePacketDto {
-  @IsNotEmpty({ message: "packet名称不能为空" })
-  @IsString({ message: "packet名称必须是字符串" })
-  @Length(1, 255, { message: "packet名称长度必须在1-255个字符之间" })
-  name: string;
-
-  @IsOptional()
-  @IsString({ message: "描述必须是字符串" })
-  description?: string;
-}
-```
-
-## 🔧 开发
-
-### 添加新实体
-
-1. 在 `lib/entities/` 中创建实体文件
-2. 在 `lib/data-source.ts` 中注册实体
-3. 创建对应的 DTO 文件
-4. 创建 API 路由
-
-### 添加验证
-
-使用 `class-validator` 装饰器为 DTO 添加验证规则：
+Use DTO (Data Transfer Object) for request data validation:
 
 ```typescript
-@IsEmail({}, { message: "邮箱格式不正确" })
+@IsNotEmpty({ message: "Packet name cannot be empty" })
+@IsString({ message: "Packet name must be a string" })
+@Length(1, 255, { message: "Packet name length must be between 1-255 characters" })
+name: string;
+
 @IsOptional()
-email?: string;
+@IsString({ message: "Description must be a string" })
+description?: string;
 ```
 
-## 📚 文档
+## 🔧 Development
 
-- [Packets API 文档](docs/packets-api.md)
-- [用户认证文档](docs/user-authentication.md)
-- [TypeORM 迁移文档](docs/typeorm-migration.md)
+### Adding New Entities
 
-## 🚀 部署
+1. Create entity file in `lib/entities/`
+2. Register entity in `lib/data-source.ts`
+3. Create corresponding DTO file
+4. Create API routes
 
-项目配置为 Vercel 部署：
+### Adding Validation
 
-```json
-// vercel.json
-{
-  "builds": [{ "src": "api/index.ts", "use": "@vercel/node" }]
-}
+Use `class-validator` decorators to add validation rules to DTOs:
+
+```typescript
+@IsEmail({}, { message: "Invalid email format" })
+email: string;
 ```
 
-## 🤝 贡献
+## 📚 Documentation
 
-1. Fork 项目
-2. 创建功能分支
-3. 提交更改
-4. 推送到分支
-5. 创建 Pull Request
+- [Packets API Documentation](docs/packets-api.md)
+- [User Authentication Documentation](docs/user-authentication.md)
+- [TypeORM Migration Documentation](docs/typeorm-migration.md)
 
-## �� 许可证
+## 🚀 Deployment
 
-ISC License
+The project is configured for Vercel deployment:
+
+1. Push code to GitHub
+2. Connect to Vercel
+3. Configure environment variables
+4. Deploy automatically
+
+## 🤝 Contributing
+
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License.

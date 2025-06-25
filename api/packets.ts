@@ -23,13 +23,13 @@ import * as _ from "lodash";
 
 const router: ExpressRouter = Router();
 
-// GET /api/packets - 获取当前用户的所有packets
+// GET /api/packets - Get all packets for current user
 router.get("/", async (req: Request, res: Response) => {
   try {
     const userId = req.user?.sub;
 
     if (!userId) {
-      return res.status(401).json(new PacketErrorResponseDto("用户未认证"));
+      return res.status(401).json(new PacketErrorResponseDto("User not authenticated"));
     }
 
     const packetRepository = AppDataSource.getRepository(Packet);
@@ -42,37 +42,37 @@ router.get("/", async (req: Request, res: Response) => {
 
     res.json(new PacketListResponseDto(userPackets));
   } catch (error) {
-    console.error("获取用户packets时出错:", error);
+    console.error("Error fetching user packets:", error);
     res
       .status(500)
       .json(
         new PacketErrorResponseDto(
-          "服务器内部错误",
+          "Internal server error",
           process.env.NODE_ENV === "development" ? error : undefined
         )
       );
   }
 });
 
-// GET /api/packets/:id - 获取特定packet的详细信息
+// GET /api/packets/:id - Get specific packet details
 router.get("/:id", async (req: Request, res: Response) => {
   try {
     const userId = req.user?.sub;
     const packetId = parseInt(req.params.id);
 
     if (!userId) {
-      return res.status(401).json(new PacketErrorResponseDto("用户未认证"));
+      return res.status(401).json(new PacketErrorResponseDto("User not authenticated"));
     }
 
     if (isNaN(packetId)) {
       return res
         .status(400)
-        .json(new PacketErrorResponseDto("无效的packet ID"));
+        .json(new PacketErrorResponseDto("Invalid packet ID"));
     }
 
     const packetRepository = AppDataSource.getRepository(Packet);
 
-    // 查询特定packet，确保它属于当前用户
+    // Query specific packet, ensure it belongs to current user
     const userPacket = await packetRepository.findOne({
       where: { id: packetId, userId },
     });
@@ -80,24 +80,24 @@ router.get("/:id", async (req: Request, res: Response) => {
     if (!userPacket) {
       return res
         .status(404)
-        .json(new PacketErrorResponseDto("packet不存在或无权限访问"));
+        .json(new PacketErrorResponseDto("Packet not found or access denied"));
     }
 
-    res.json(new PacketSingleResponseDto(userPacket, "获取packet详情成功"));
+    res.json(new PacketSingleResponseDto(userPacket, "Packet details retrieved successfully"));
   } catch (error) {
-    console.error("获取packet详情时出错:", error);
+    console.error("Error fetching packet details:", error);
     res
       .status(500)
       .json(
         new PacketErrorResponseDto(
-          "服务器内部错误",
+          "Internal server error",
           process.env.NODE_ENV === "development" ? error : undefined
         )
       );
   }
 });
 
-// POST /api/packets - 创建新的packet
+// POST /api/packets - Create new packet
 router.post(
   "/",
   validationMiddleware(CreatePacketDto),
@@ -122,7 +122,7 @@ router.post(
       });
 
       if (!userId) {
-        return res.status(401).json(new PacketErrorResponseDto("用户未认证"));
+        return res.status(401).json(new PacketErrorResponseDto("User not authenticated"));
       }
 
       const packetRepository = AppDataSource.getRepository(Packet);
@@ -147,14 +147,14 @@ router.post(
 
       res
         .status(201)
-        .json(new PacketSingleResponseDto(savedPacket, "packet创建成功"));
+        .json(new PacketSingleResponseDto(savedPacket, "Packet created successfully"));
     } catch (error) {
-      console.error("创建packet时出错:", error);
+      console.error("Error creating packet:", error);
       res
         .status(500)
         .json(
           new PacketErrorResponseDto(
-            "服务器内部错误",
+            "Internal server error",
             process.env.NODE_ENV === "development" ? error : undefined
           )
         );
@@ -162,7 +162,7 @@ router.post(
   }
 );
 
-// PUT /api/packets/:id - 更新packet
+// PUT /api/packets/:id - Update packet
 router.put(
   "/:id",
   validationMiddleware(UpdatePacketDto),
@@ -173,18 +173,18 @@ router.put(
       const updateData = req.body;
 
       if (!userId) {
-        return res.status(401).json(new PacketErrorResponseDto("用户未认证"));
+        return res.status(401).json(new PacketErrorResponseDto("User not authenticated"));
       }
 
       if (isNaN(packetId)) {
         return res
           .status(400)
-          .json(new PacketErrorResponseDto("无效的packet ID"));
+          .json(new PacketErrorResponseDto("Invalid packet ID"));
       }
 
       const packetRepository = AppDataSource.getRepository(Packet);
 
-      // 验证packet是否属于当前用户
+      // Verify packet belongs to current user
       const existingPacket = await packetRepository.findOne({
         where: { id: packetId, userId },
       });
@@ -192,21 +192,21 @@ router.put(
       if (!existingPacket) {
         return res
           .status(404)
-          .json(new PacketErrorResponseDto("packet不存在或无权限修改"));
+          .json(new PacketErrorResponseDto("Packet not found or access denied"));
       }
 
-      // 更新packet
+      // Update packet
       Object.assign(existingPacket, updateData);
       const updatedPacket = await packetRepository.save(existingPacket);
 
-      res.json(new PacketSingleResponseDto(updatedPacket, "packet更新成功"));
+      res.json(new PacketSingleResponseDto(updatedPacket, "Packet updated successfully"));
     } catch (error) {
-      console.error("更新packet时出错:", error);
+      console.error("Error updating packet:", error);
       res
         .status(500)
         .json(
           new PacketErrorResponseDto(
-            "服务器内部错误",
+            "Internal server error",
             process.env.NODE_ENV === "development" ? error : undefined
           )
         );
@@ -214,25 +214,25 @@ router.put(
   }
 );
 
-// DELETE /api/packets/:id - 删除packet
+// DELETE /api/packets/:id - Delete packet
 router.delete("/:id", async (req: Request, res: Response) => {
   try {
     const userId = req.user?.sub;
     const packetId = parseInt(req.params.id);
 
     if (!userId) {
-      return res.status(401).json(new PacketErrorResponseDto("用户未认证"));
+      return res.status(401).json(new PacketErrorResponseDto("User not authenticated"));
     }
 
     if (isNaN(packetId)) {
       return res
         .status(400)
-        .json(new PacketErrorResponseDto("无效的packet ID"));
+        .json(new PacketErrorResponseDto("Invalid packet ID"));
     }
 
     const packetRepository = AppDataSource.getRepository(Packet);
 
-    // 验证packet是否属于当前用户
+    // Verify packet belongs to current user
     const existingPacket = await packetRepository.findOne({
       where: { id: packetId, userId },
     });
@@ -240,30 +240,30 @@ router.delete("/:id", async (req: Request, res: Response) => {
     if (!existingPacket) {
       return res
         .status(404)
-        .json(new PacketErrorResponseDto("packet不存在或无权限删除"));
+        .json(new PacketErrorResponseDto("Packet not found or access denied"));
     }
 
-    // 删除packet
+    // Delete packet
     await packetRepository.remove(existingPacket);
 
     res.json({
       success: true,
-      message: "packet删除成功",
+      message: "Packet deleted successfully",
     });
   } catch (error) {
-    console.error("删除packet时出错:", error);
+    console.error("Error deleting packet:", error);
     res
       .status(500)
       .json(
         new PacketErrorResponseDto(
-          "服务器内部错误",
+          "Internal server error",
           process.env.NODE_ENV === "development" ? error : undefined
         )
       );
   }
 });
 
-// POST /api/packets/with-itinerary - 创建带有行程数据的packet
+// POST /api/packets/with-itinerary - Create packet with itinerary data
 router.post(
   "/with-itinerary",
   validationMiddleware(CreatePacketWithItineraryDto),
@@ -273,16 +273,16 @@ router.post(
       const { name, description, cost, currencyCode, itinerary } = req.body;
 
       if (!userId) {
-        return res.status(401).json(new PacketErrorResponseDto("用户未认证"));
+        return res.status(401).json(new PacketErrorResponseDto("User not authenticated"));
       }
 
-      // 开始数据库事务
+      // Start database transaction
       const queryRunner = AppDataSource.createQueryRunner();
       await queryRunner.connect();
       await queryRunner.startTransaction();
 
       try {
-        // 1. 创建 Packet
+        // 1. Create Packet
         const packetRepository = queryRunner.manager.getRepository(Packet);
         const newPacket = packetRepository.create({
           name,
@@ -293,7 +293,7 @@ router.post(
         });
         const savedPacket = await packetRepository.save(newPacket);
 
-        // 2. 创建 ItineraryDays 和 Markers
+        // 2. Create ItineraryDays and Markers
         const itineraryDayRepository =
           queryRunner.manager.getRepository(ItineraryDay);
         const markerRepository = queryRunner.manager.getRepository(Marker);
@@ -303,7 +303,7 @@ router.post(
         for (let dayIndex = 0; dayIndex < itinerary.length; dayIndex++) {
           const dayData = itinerary[dayIndex];
 
-          // 创建 ItineraryDay
+          // Create ItineraryDay
           const itineraryDay = itineraryDayRepository.create({
             id: uuidv4(),
             name: dayData.dayText,
@@ -315,7 +315,7 @@ router.post(
             itineraryDay
           );
 
-          // 创建该天的 Markers
+          // Create Markers for this day
           const dayMarkers = [];
           for (
             let trackIndex = 0;
@@ -339,15 +339,15 @@ router.post(
             dayMarkers.push(savedMarker);
           }
 
-          // 将 markers 添加到 itineraryDay 对象中用于响应
+          // Add markers to itineraryDay object for response
           savedItineraryDay.markers = dayMarkers;
           createdItineraryDays.push(savedItineraryDay);
         }
 
-        // 提交事务
+        // Commit transaction
         await queryRunner.commitTransaction();
 
-        // 构建响应数据
+        // Build response data
         const responsePacket = {
           ...savedPacket,
           itineraryDays: createdItineraryDays,
@@ -356,23 +356,23 @@ router.post(
         res.status(201).json({
           success: true,
           data: new PacketWithItineraryResponseDto(responsePacket),
-          message: "packet和行程创建成功",
+          message: "Packet and itinerary created successfully",
         });
       } catch (error) {
-        // 回滚事务
+        // Rollback transaction
         await queryRunner.rollbackTransaction();
         throw error;
       } finally {
-        // 释放查询运行器
+        // Release query runner
         await queryRunner.release();
       }
     } catch (error) {
-      console.error("创建packet和行程时出错:", error);
+      console.error("Error creating packet and itinerary:", error);
       res
         .status(500)
         .json(
           new PacketErrorResponseDto(
-            "服务器内部错误",
+            "Internal server error",
             process.env.NODE_ENV === "development" ? error : undefined
           )
         );
@@ -380,27 +380,27 @@ router.post(
   }
 );
 
-// GET /api/packets/:id/with-itinerary - 获取带有完整行程数据的packet
+// GET /api/packets/:id/with-itinerary - Get packet with complete itinerary data
 router.get("/:id/with-itinerary", async (req: Request, res: Response) => {
   try {
     const userId = req.user?.sub;
     const packetId = parseInt(req.params.id);
 
     if (!userId) {
-      return res.status(401).json(new PacketErrorResponseDto("用户未认证"));
+      return res.status(401).json(new PacketErrorResponseDto("User not authenticated"));
     }
 
     if (isNaN(packetId)) {
       return res
         .status(400)
-        .json(new PacketErrorResponseDto("无效的packet ID"));
+        .json(new PacketErrorResponseDto("Invalid packet ID"));
     }
 
     const packetRepository = AppDataSource.getRepository(Packet);
     const itineraryDayRepository = AppDataSource.getRepository(ItineraryDay);
     const markerRepository = AppDataSource.getRepository(Marker);
 
-    // 查询 packet
+    // Query packet
     const packet = await packetRepository.findOne({
       where: { id: packetId, userId },
     });
@@ -408,16 +408,16 @@ router.get("/:id/with-itinerary", async (req: Request, res: Response) => {
     if (!packet) {
       return res
         .status(404)
-        .json(new PacketErrorResponseDto("packet不存在或无权限访问"));
+        .json(new PacketErrorResponseDto("Packet not found or access denied"));
     }
 
-    // 查询行程天数
+    // Query itinerary days
     const itineraryDays = await itineraryDayRepository.find({
       where: { packetId: packetId.toString() },
       order: { dayNumber: "ASC" },
     });
 
-    // 为每个行程天数查询标记点
+    // Query markers for each itinerary day
     for (const day of itineraryDays) {
       const markers = await markerRepository.find({
         where: { dayId: day.id },
@@ -434,15 +434,15 @@ router.get("/:id/with-itinerary", async (req: Request, res: Response) => {
     res.json({
       success: true,
       data: new PacketWithItineraryResponseDto(responsePacket),
-      message: "获取packet和行程详情成功",
+      message: "Packet and itinerary details retrieved successfully",
     });
   } catch (error) {
-    console.error("获取packet和行程详情时出错:", error);
+    console.error("Error fetching packet and itinerary details:", error);
     res
       .status(500)
       .json(
         new PacketErrorResponseDto(
-          "服务器内部错误",
+          "Internal server error",
           process.env.NODE_ENV === "development" ? error : undefined
         )
       );

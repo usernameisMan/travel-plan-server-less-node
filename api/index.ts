@@ -8,9 +8,9 @@ import { initializeDatabase } from "../lib/data-source";
 
 const app: Express = express();
 
-// 初始化数据库连接
+// Initialize database connection
 initializeDatabase().catch((error) => {
-  console.error("数据库初始化失败:", error);
+  console.error("Database initialization failed:", error);
   process.exit(1);
 });
 
@@ -18,7 +18,7 @@ initializeDatabase().catch((error) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 请求日志中间件 - 必须在其他中间件之前
+// Request logging middleware - must be before other middleware
 app.use(requestLoggingMiddleware);
 
 // CORS configuration
@@ -39,22 +39,22 @@ app.use((req, res, next) => {
   next();
 });
 
-// 应用 Auth0 中间件到所有路由
+// Apply Auth0 middleware to all routes
 app.use(checkJwt);
-app.use(extractUser); // 提取用户信息
+app.use(extractUser); // Extract user information
 app.use(handleAuthError);
 
 app.get("/", (req, res) => res.send("Express on Vercel with TypeORM!"));
 
-// 示例路由：展示如何获取用户ID
+// Example route: demonstrate how to get user ID
 app.get("/user/profile", (req, res) => {
-  // 现在可以通过 req.user 访问用户信息
+  // Now you can access user information through req.user
   const userId = req.user?.sub;
   const userEmail = req.user?.email;
   const userName = req.user?.name;
 
   res.json({
-    message: "用户信息获取成功",
+    message: "User information retrieved successfully",
     userId,
     userEmail,
     userName,
@@ -62,10 +62,10 @@ app.get("/user/profile", (req, res) => {
   });
 });
 
-// 注册packets路由
+// Register packets routes
 app.use("/api/packets", packetsRouter);
 
-// 错误日志中间件 - 必须在所有路由之后
+// Error logging middleware - must be after all routes
 app.use(errorLoggingMiddleware);
 
 app.listen(3000, () => console.log("Server ready on port 3000 with TypeORM."));

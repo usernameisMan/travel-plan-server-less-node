@@ -33,7 +33,7 @@ export class Packet {
   @UpdateDateColumn({ name: "updated_at", type: "timestamp" })
   updatedAt: Date;
 
-  // 关联关系 - 使用字符串引用避免循环依赖
+  // Relationship - using string reference to avoid circular dependency
   @OneToMany("ItineraryDay", "packet")
   itineraryDays: any[];
 

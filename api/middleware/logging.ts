@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 
-// 敏感字段列表，这些字段的值会被替换为 [REDACTED]
+// List of sensitive fields, these field values will be replaced with [REDACTED]
 const SENSITIVE_FIELDS = [
   'password',
   'token',
@@ -24,7 +24,7 @@ const SENSITIVE_FIELDS = [
   'postal_code'
 ];
 
-// 敏感路径，这些路径的请求体会被完全隐藏
+// Sensitive paths, request bodies for these paths will be completely hidden
 const SENSITIVE_PATHS = [
   '/auth/login',
   '/auth/register',
@@ -34,7 +34,7 @@ const SENSITIVE_PATHS = [
   '/webhook'
 ];
 
-// 递归过滤敏感信息
+// Recursively filter sensitive information
 function filterSensitiveData(obj: any, path: string = ''): any {
   if (obj === null || obj === undefined) {
     return obj;
@@ -57,7 +57,7 @@ function filterSensitiveData(obj: any, path: string = ''): any {
     for (const [key, value] of Object.entries(obj)) {
       const currentPath = path ? `${path}.${key}` : key;
       
-      // 检查是否是敏感字段
+      // Check if it's a sensitive field
       if (SENSITIVE_FIELDS.some(field => 
         key.toLowerCase().includes(field.toLowerCase()) ||
         currentPath.toLowerCase().includes(field.toLowerCase())
@@ -73,7 +73,7 @@ function filterSensitiveData(obj: any, path: string = ''): any {
   return obj;
 }
 
-// 格式化请求日志
+// Format request log
 function formatRequestLog(req: Request): string {
   const timestamp = new Date().toISOString();
   const method = req.method;
@@ -83,7 +83,7 @@ function formatRequestLog(req: Request): string {
   
   let body = null;
   if (req.body && Object.keys(req.body).length > 0) {
-    // 检查是否是敏感路径
+    // Check if it's a sensitive path
     if (SENSITIVE_PATHS.some(path => url.includes(path))) {
       body = '[SENSITIVE_PATH_REDACTED]';
     } else {
@@ -92,7 +92,7 @@ function formatRequestLog(req: Request): string {
   }
 
   const headers = { ...req.headers };
-  // 隐藏敏感请求头
+  // Hide sensitive request headers
   if (headers.authorization) {
     headers.authorization = headers.authorization.startsWith('Bearer ') 
       ? 'Bearer [REDACTED]' 
@@ -112,14 +112,14 @@ function formatRequestLog(req: Request): string {
   }, null, 2);
 }
 
-// 格式化响应日志
+// Format response log
 function formatResponseLog(req: Request, res: Response, responseBody: any, responseTime: number): string {
   const timestamp = new Date().toISOString();
   const method = req.method;
   const url = req.url;
   const statusCode = res.statusCode;
   
-  // 过滤响应体中的敏感信息
+  // Filter sensitive information in response body
   let filteredBody = responseBody;
   if (responseBody && typeof responseBody === 'object') {
     filteredBody = filterSensitiveData(responseBody);
@@ -137,54 +137,54 @@ function formatResponseLog(req: Request, res: Response, responseBody: any, respo
   }, null, 2);
 }
 
-// 日志中间件
+// Logging middleware
 export const requestLoggingMiddleware = (req: Request, res: Response, next: NextFunction) => {
   const startTime = Date.now();
   
-  // 记录请求
+  // Log request
   console.log('🚀 REQUEST:', formatRequestLog(req));
   
-  // 保存原始的 res.json 方法
+  // Save original res.json method
   const originalJson = res.json;
   
-  // 重写 res.json 方法来捕获响应体
+  // Override res.json method to capture response body
   res.json = function(body: any) {
     const responseTime = Date.now() - startTime;
     
-    // 记录响应
+    // Log response
     console.log('📤 RESPONSE:', formatResponseLog(req, res, body, responseTime));
     
-    // 调用原始的 json 方法
+    // Call original json method
     return originalJson.call(this, body);
   };
   
-  // 重写 res.send 方法来捕获响应体
+  // Override res.send method to capture response body
   const originalSend = res.send;
   res.send = function(body: any) {
     const responseTime = Date.now() - startTime;
     
-    // 尝试解析 JSON 响应
+    // Try to parse JSON response
     let parsedBody = body;
     try {
       if (typeof body === 'string') {
         parsedBody = JSON.parse(body);
       }
     } catch (e) {
-      // 如果不是 JSON，保持原样
+      // If not JSON, keep as is
       parsedBody = body;
     }
     
-    // 记录响应
+    // Log response
     console.log('📤 RESPONSE:', formatResponseLog(req, res, parsedBody, responseTime));
     
-    // 调用原始的 send 方法
+    // Call original send method
     return originalSend.call(this, body);
   };
   
   next();
 };
 
-// 错误日志中间件
+// Error logging middleware
 export const errorLoggingMiddleware = (err: any, req: Request, res: Response, next: NextFunction) => {
   const timestamp = new Date().toISOString();
   const method = req.method;

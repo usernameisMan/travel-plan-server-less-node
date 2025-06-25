@@ -25,6 +25,9 @@ export class Marker {
   @Column({ name: "packet_id", type: "uuid", nullable: true })
   packetId: string;
 
+  @Column({ name: "itinerary_day_id", type: "text", nullable: false })
+  itineraryDayId: string;
+  
   @Column({ name: "user_id", type: "text", nullable: true })
   userId: string;
 
@@ -46,7 +49,7 @@ export class Marker {
   @UpdateDateColumn({ name: "updated_at", type: "timestamp" })
   updatedAt: Date;
 
-  // 关联关系 - 使用字符串引用避免循环依赖
+  // Relationship - using string reference to avoid circular dependency
   @ManyToOne("Packet", "markers")
   @JoinColumn({ name: "packet_id" })
   packet: any;
@@ -54,4 +57,4 @@ export class Marker {
   @ManyToOne("ItineraryDay", "markers")
   @JoinColumn({ name: "day_id" })
   day: any;
-} 
+}
