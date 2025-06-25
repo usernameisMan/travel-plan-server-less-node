@@ -1,16 +1,34 @@
-import { IsString, IsOptional, IsDecimal, IsNotEmpty, Length, IsObject, IsArray } from "class-validator";
+import {
+  IsString,
+  IsOptional,
+  IsNotEmpty,
+  Length,
+  IsObject,
+  IsArray,
+} from "class-validator";
 import { Transform } from "class-transformer";
 
 
-export class TrackDto {
+export class LocationDto {
+  @IsString({ message: "经度必须是字符串" })
+  @IsNotEmpty({ message: "经度不能为空" })
+  lng: string;
+
+  @IsString({ message: "纬度必须是字符串" })
+  @IsNotEmpty({ message: "纬度不能为空" })
+  lat: string;
+}
+
+export class MarkerDto {
+  @IsOptional()
+  @IsString({ message: "id must is string" })
+  id?: string;
+
   @IsString({ message: "type必须是字符串" })
   type: string;
 
   @IsObject({ message: "location必须是对象" })
-  location: {
-    lng: string;
-    lat: string;
-  };
+  location: LocationDto
 
   @IsString({ message: "title必须是字符串" })
   title: string;
@@ -20,6 +38,10 @@ export class TrackDto {
 }
 
 export class ItineraryDayDto {
+  @IsOptional()
+  @IsString({ message: "id must is string" })
+  id?: string;
+
   @IsString({ message: "day必须是字符串" })
   day: string;
 
@@ -30,10 +52,14 @@ export class ItineraryDayDto {
   description: string;
 
   @IsArray({ message: "tracks必须是数组" })
-  tracks: TrackDto[];
+  markers: MarkerDto[];
 }
 
 export class CreatePacketDto {
+  @IsOptional()
+  @IsString({ message: "id must is string" })
+  id?: string;
+
   @IsNotEmpty({ message: "packet名称不能为空" })
   @IsString({ message: "packet名称必须是字符串" })
   @Length(1, 255, { message: "packet名称长度必须在1-255个字符之间" })
@@ -60,6 +86,11 @@ export class CreatePacketDto {
 }
 
 export class UpdatePacketDto {
+  @IsOptional()
+  @IsNotEmpty({ message: "update need id" })
+  @IsString({ message: "id must is string" })
+  id?: string;
+
   @IsOptional()
   @IsString({ message: "packet名称必须是字符串" })
   @Length(1, 255, { message: "packet名称长度必须在1-255个字符之间" })
@@ -111,7 +142,7 @@ export class PacketListResponseDto {
 
   constructor(packets: any[], message: string = "获取packets成功") {
     this.success = true;
-    this.data = packets.map(packet => new PacketResponseDto(packet));
+    this.data = packets.map((packet) => new PacketResponseDto(packet));
     this.count = packets.length;
     this.message = message;
   }
@@ -139,4 +170,4 @@ export class PacketErrorResponseDto {
     this.message = message;
     this.error = error;
   }
-} 
+}

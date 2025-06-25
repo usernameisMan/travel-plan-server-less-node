@@ -1,52 +1,13 @@
-import { IsString, IsOptional, IsArray, ValidateNested, IsNotEmpty, IsNumber } from "class-validator";
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  ValidateNested,
+  IsNotEmpty,
+  IsNumber,
+} from "class-validator";
 import { Type, Transform } from "class-transformer";
-
-export class LocationDto {
-  @IsString({ message: "经度必须是字符串" })
-  @IsNotEmpty({ message: "经度不能为空" })
-  lng: string;
-
-  @IsString({ message: "纬度必须是字符串" })
-  @IsNotEmpty({ message: "纬度不能为空" })
-  lat: string;
-}
-
-export class TrackDto {
-  @IsString({ message: "类型必须是字符串" })
-  @IsNotEmpty({ message: "类型不能为空" })
-  type: string;
-
-  @ValidateNested()
-  @Type(() => LocationDto)
-  location: LocationDto;
-
-  @IsString({ message: "标题必须是字符串" })
-  @IsNotEmpty({ message: "标题不能为空" })
-  title: string;
-
-  @IsOptional()
-  @IsString({ message: "描述必须是字符串" })
-  description?: string;
-}
-
-export class ItineraryDayDto {
-  @IsString({ message: "day必须是字符串" })
-  @IsNotEmpty({ message: "day不能为空" })
-  day: string;
-
-  @IsString({ message: "dayText必须是字符串" })
-  @IsNotEmpty({ message: "dayText不能为空" })
-  dayText: string;
-
-  @IsOptional()
-  @IsString({ message: "描述必须是字符串" })
-  description?: string;
-
-  @IsArray({ message: "tracks必须是数组" })
-  @ValidateNested({ each: true })
-  @Type(() => TrackDto)
-  tracks: TrackDto[];
-}
+import { ItineraryDayDto } from "./packet.dto";
 
 export class CreatePacketWithItineraryDto {
   @IsNotEmpty({ message: "packet名称不能为空" })
@@ -89,7 +50,10 @@ export class ItineraryResponseDto {
     this.description = itineraryDay.description;
     this.createdAt = itineraryDay.createdAt;
     this.updatedAt = itineraryDay.updatedAt;
-    this.markers = itineraryDay.markers?.map((marker: any) => new MarkerResponseDto(marker)) || [];
+    this.markers =
+      itineraryDay.markers?.map(
+        (marker: any) => new MarkerResponseDto(marker)
+      ) || [];
   }
 }
 
@@ -143,6 +107,8 @@ export class PacketWithItineraryResponseDto {
     this.currencyCode = packet.currencyCode;
     this.createdAt = packet.createdAt;
     this.updatedAt = packet.updatedAt;
-    this.itineraryDays = packet.itineraryDays?.map((day: any) => new ItineraryResponseDto(day)) || [];
+    this.itineraryDays =
+      packet.itineraryDays?.map((day: any) => new ItineraryResponseDto(day)) ||
+      [];
   }
-} 
+}
