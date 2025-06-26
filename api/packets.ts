@@ -18,7 +18,7 @@ import {
   PacketWithItineraryResponseDto,
 } from "../lib/dto/itinerary.dto";
 import { validationMiddleware } from "./middleware/validation";
-import { v4 as uuidv4 } from "uuid";
+import { v4 as uuidV4 } from "uuid";
 import * as _ from "lodash";
 
 const router: ExpressRouter = Router();
@@ -29,7 +29,9 @@ router.get("/", async (req: Request, res: Response) => {
     const userId = req.user?.sub;
 
     if (!userId) {
-      return res.status(401).json(new PacketErrorResponseDto("User not authenticated"));
+      return res
+        .status(401)
+        .json(new PacketErrorResponseDto("User not authenticated"));
     }
 
     const packetRepository = AppDataSource.getRepository(Packet);
@@ -61,7 +63,9 @@ router.get("/:id", async (req: Request, res: Response) => {
     const packetId = parseInt(req.params.id);
 
     if (!userId) {
-      return res.status(401).json(new PacketErrorResponseDto("User not authenticated"));
+      return res
+        .status(401)
+        .json(new PacketErrorResponseDto("User not authenticated"));
     }
 
     if (isNaN(packetId)) {
@@ -83,7 +87,12 @@ router.get("/:id", async (req: Request, res: Response) => {
         .json(new PacketErrorResponseDto("Packet not found or access denied"));
     }
 
-    res.json(new PacketSingleResponseDto(userPacket, "Packet details retrieved successfully"));
+    res.json(
+      new PacketSingleResponseDto(
+        userPacket,
+        "Packet details retrieved successfully"
+      )
+    );
   } catch (error) {
     console.error("Error fetching packet details:", error);
     res
@@ -104,26 +113,37 @@ router.post(
   async (req: Request, res: Response) => {
     try {
       const userId = req.user?.sub;
+      if (!userId) {
+        return res
+          .status(401)
+          .json(new PacketErrorResponseDto("User not authenticated"));
+      }
+
       const { name, description, cost, currencyCode, itineraryDays } = req.body;
 
-      const allMarker = [];
+      const allMarker: any[] = [];
 
       const itineraryDaysInfo = itineraryDays.map((day: ItineraryDayDto) => {
-        day.markers?.forEach((marker: MarkerDto) => {
-          allMarker.push(marker);
+        const dayId = uuidV4();
+        day.markers?.forEach((marker: MarkerDto, index: number) => {
+          allMarker.push({
+            ...marker,
+            dayId: dayId,
+            sortOrder: index,
+            id: uuidV4(),
+            userId,
+            lng: marker.location.lng,
+            lat: marker.location.lat,
+          });
         });
 
         return {
-          id: day?.id,
+          id: dayId,
           day: day.day,
           dayText: day.dayText,
           description: day.description,
         };
       });
-
-      if (!userId) {
-        return res.status(401).json(new PacketErrorResponseDto("User not authenticated"));
-      }
 
       const packetRepository = AppDataSource.getRepository(Packet);
 
@@ -136,18 +156,45 @@ router.post(
         currencyCode: currencyCode || "USD",
       });
 
+      const savedPacket = await packetRepository.save(newPacket);
+
       if (!_.isEmpty(itineraryDaysInfo)) {
         const itineraryDayRepository =
           AppDataSource.getRepository(ItineraryDay);
-        const itineraryDays = itineraryDayRepository.create(itineraryDaysInfo);
+        const itineraryDays = itineraryDayRepository.create(
+          itineraryDaysInfo.map((day: ItineraryDayDto, index: number) => {
+            return {
+              ...day,
+              name:day.dayText,
+              dayNumber: index + 1,
+              sortOrder: index,
+              packetId: savedPacket.id.toString(),
+            };
+          })
+        );
         await itineraryDayRepository.save(itineraryDays);
       }
 
-      const savedPacket = await packetRepository.save(newPacket);
+      if (!_.isEmpty(allMarker)) {
+        const markerRepository = AppDataSource.getRepository(Marker);
+        const markers = markerRepository.create(allMarker.map((marker: any) => {
+          return {
+            ...marker,
+            packetId: savedPacket.id.toString(),
+            userId,
+          };
+        }));
+        await markerRepository.save(markers);
+      }
 
       res
         .status(201)
-        .json(new PacketSingleResponseDto(savedPacket, "Packet created successfully"));
+        .json(
+          new PacketSingleResponseDto(
+            savedPacket,
+            "Packet created successfully"
+          )
+        );
     } catch (error) {
       console.error("Error creating packet:", error);
       res
@@ -173,7 +220,9 @@ router.put(
       const updateData = req.body;
 
       if (!userId) {
-        return res.status(401).json(new PacketErrorResponseDto("User not authenticated"));
+        return res
+          .status(401)
+          .json(new PacketErrorResponseDto("User not authenticated"));
       }
 
       if (isNaN(packetId)) {
@@ -192,14 +241,21 @@ router.put(
       if (!existingPacket) {
         return res
           .status(404)
-          .json(new PacketErrorResponseDto("Packet not found or access denied"));
+          .json(
+            new PacketErrorResponseDto("Packet not found or access denied")
+          );
       }
 
       // Update packet
       Object.assign(existingPacket, updateData);
       const updatedPacket = await packetRepository.save(existingPacket);
 
-      res.json(new PacketSingleResponseDto(updatedPacket, "Packet updated successfully"));
+      res.json(
+        new PacketSingleResponseDto(
+          updatedPacket,
+          "Packet updated successfully"
+        )
+      );
     } catch (error) {
       console.error("Error updating packet:", error);
       res
@@ -221,7 +277,9 @@ router.delete("/:id", async (req: Request, res: Response) => {
     const packetId = parseInt(req.params.id);
 
     if (!userId) {
-      return res.status(401).json(new PacketErrorResponseDto("User not authenticated"));
+      return res
+        .status(401)
+        .json(new PacketErrorResponseDto("User not authenticated"));
     }
 
     if (isNaN(packetId)) {
@@ -273,7 +331,9 @@ router.post(
       const { name, description, cost, currencyCode, itinerary } = req.body;
 
       if (!userId) {
-        return res.status(401).json(new PacketErrorResponseDto("User not authenticated"));
+        return res
+          .status(401)
+          .json(new PacketErrorResponseDto("User not authenticated"));
       }
 
       // Start database transaction
@@ -305,7 +365,7 @@ router.post(
 
           // Create ItineraryDay
           const itineraryDay = itineraryDayRepository.create({
-            id: uuidv4(),
+            id: uuidV4(),
             name: dayData.dayText,
             packetId: savedPacket.id.toString(),
             dayNumber: dayData.day,
@@ -326,7 +386,7 @@ router.post(
 
             const marker = markerRepository.create({
               title: track.title,
-              lon: track.location.lng,
+              lng: track.location.lng,
               lat: track.location.lat,
               packetId: savedPacket.id.toString(),
               userId,
@@ -387,7 +447,9 @@ router.get("/:id/with-itinerary", async (req: Request, res: Response) => {
     const packetId = parseInt(req.params.id);
 
     if (!userId) {
-      return res.status(401).json(new PacketErrorResponseDto("User not authenticated"));
+      return res
+        .status(401)
+        .json(new PacketErrorResponseDto("User not authenticated"));
     }
 
     if (isNaN(packetId)) {

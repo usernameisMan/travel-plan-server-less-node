@@ -17,16 +17,13 @@ export class Marker {
   title: string;
 
   @Column({ type: "text", nullable: true })
-  lon: string;
+  lng: string;
 
   @Column({ type: "text", nullable: true })
   lat: string;
 
-  @Column({ name: "packet_id", type: "uuid", nullable: true })
+  @Column({ name: "packet_id", type: "text", nullable: true })
   packetId: string;
-
-  @Column({ name: "itinerary_day_id", type: "text", nullable: false })
-  itineraryDayId: string;
   
   @Column({ name: "user_id", type: "text", nullable: true })
   userId: string;

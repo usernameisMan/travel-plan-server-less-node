@@ -60,7 +60,7 @@ export class ItineraryResponseDto {
 export class MarkerResponseDto {
   id: string;
   title: string;
-  lon: string;
+  lng: string;
   lat: string;
   packetId: string;
   userId: string;
@@ -74,7 +74,7 @@ export class MarkerResponseDto {
   constructor(marker: any) {
     this.id = marker.id;
     this.title = marker.title;
-    this.lon = marker.lon;
+    this.lng = marker.lng;
     this.lat = marker.lat;
     this.packetId = marker.packetId;
     this.userId = marker.userId;

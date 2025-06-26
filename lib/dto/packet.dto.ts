@@ -5,9 +5,9 @@ import {
   Length,
   IsObject,
   IsArray,
+  IsNumber,
 } from "class-validator";
 import { Transform } from "class-transformer";
-
 
 export class LocationDto {
   @IsString({ message: "Longitude must be a string" })
@@ -24,20 +24,42 @@ export class MarkerDto {
   @IsString({ message: "id must is string" })
   id?: string;
 
+  @IsOptional()
+  @IsString({ message: "dayId must is string" })
+  dayId?: string;
+
   @IsString({ message: "Type must be a string" })
   type: string;
 
   @IsObject({ message: "Location must be an object" })
-  location: LocationDto
+  location: LocationDto;
+
+  @IsOptional()
+  userId: string;
+
+  @IsOptional()
+  packetId: string;
 
   @IsString({ message: "Title must be a string" })
   title: string;
 
   @IsString({ message: "Description must be a string" })
   description: string;
+
+  @IsNumber(
+    { allowNaN: false, allowInfinity: false },
+    { message: "Sort order must be a number" }
+  )
+  sortOrder: number;
 }
 
 export class ItineraryDayDto {
+  @IsNumber(
+    { allowNaN: false, allowInfinity: false },
+    { message: "Sort order must be a number" }
+  )
+  sortOrder: number;
+
   @IsOptional()
   @IsString({ message: "id must is string" })
   id?: string;
@@ -62,12 +84,16 @@ export class CreatePacketDto {
 
   @IsNotEmpty({ message: "Packet name cannot be empty" })
   @IsString({ message: "Packet name must be a string" })
-  @Length(1, 255, { message: "Packet name length must be between 1-255 characters" })
+  @Length(1, 255, {
+    message: "Packet name length must be between 1-255 characters",
+  })
   name: string;
 
   @IsOptional()
   @IsString({ message: "Description must be a string" })
-  @Length(0, 1000, { message: "Description length cannot exceed 1000 characters" })
+  @Length(0, 1000, {
+    message: "Description length cannot exceed 1000 characters",
+  })
   description?: string;
 
   @IsOptional()
@@ -93,12 +119,16 @@ export class UpdatePacketDto {
 
   @IsOptional()
   @IsString({ message: "Packet name must be a string" })
-  @Length(1, 255, { message: "Packet name length must be between 1-255 characters" })
+  @Length(1, 255, {
+    message: "Packet name length must be between 1-255 characters",
+  })
   name?: string;
 
   @IsOptional()
   @IsString({ message: "Description must be a string" })
-  @Length(0, 1000, { message: "Description length cannot exceed 1000 characters" })
+  @Length(0, 1000, {
+    message: "Description length cannot exceed 1000 characters",
+  })
   description?: string;
 
   @IsOptional()
@@ -140,7 +170,10 @@ export class PacketListResponseDto {
   count: number;
   message: string;
 
-  constructor(packets: any[], message: string = "Packets retrieved successfully") {
+  constructor(
+    packets: any[],
+    message: string = "Packets retrieved successfully"
+  ) {
     this.success = true;
     this.data = packets.map((packet) => new PacketResponseDto(packet));
     this.count = packets.length;

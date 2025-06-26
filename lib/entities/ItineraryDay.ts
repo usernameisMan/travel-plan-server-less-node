@@ -26,6 +26,9 @@ export class ItineraryDay {
   @Column({ type: "text", nullable: true })
   description: string;
 
+  @Column({ name: "sort_order", type: "integer", nullable: true })
+  sortOrder: number;
+
   @CreateDateColumn({ name: "created_at", type: "timestamp" })
   createdAt: Date;
 
@@ -39,4 +42,4 @@ export class ItineraryDay {
 
   @OneToMany("Marker", "day")
   markers: any[];
-} 
+}
