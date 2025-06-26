@@ -22,7 +22,7 @@ export class LocationDto {
 
 export class MarkerDto {
   @IsOptional()
-  @IsString({ message: "id must is string" })
+  @IsString({ message: "markerDto id must is string" })
   id?: string;
 
   @IsOptional()
@@ -62,7 +62,7 @@ export class ItineraryDayDto {
   sortOrder: number;
 
   @IsOptional()
-  @IsString({ message: "id must is string" })
+  @IsString({ message: "itineraryDay id must is string" })
   id?: string;
 
   @IsString({ message: "Day must be a string" })
@@ -80,8 +80,7 @@ export class ItineraryDayDto {
 
 export class CreatePacketDto {
   @IsOptional()
-  @IsString({ message: "id must is string" })
-  id?: string;
+  id?: number;
 
   @IsOptional()
   @IsBoolean({ message: "isPublic must is boolean" })
@@ -123,7 +122,6 @@ export class CreatePacketDto {
 export class UpdatePacketDto {
   @IsOptional()
   @IsNotEmpty({ message: "update need id" })
-  @IsString({ message: "id must is string" })
   id?: string;
 
   @IsOptional()

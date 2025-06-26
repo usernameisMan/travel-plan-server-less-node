@@ -232,12 +232,12 @@ router.post(
 // PUT /api/packets/:id - Update packet
 router.put(
   "/:id",
-  validationMiddleware(UpdatePacketDto),
+  validationMiddleware(CreatePacketDto), // 使用 CreatePacketDto 因为需要完整的数据结构
   async (req: Request, res: Response) => {
     try {
       const userId = req.user?.sub;
       const packetId = parseInt(req.params.id);
-      const updateData = req.body;
+      const { name, description, cost, currencyCode, itineraryDays } = req.body;
 
       if (!userId) {
         return res
@@ -251,31 +251,153 @@ router.put(
           .json(new PacketErrorResponseDto("Invalid packet ID"));
       }
 
-      const packetRepository = AppDataSource.getRepository(Packet);
+      // Start database transaction for atomicity
+      const queryRunner = AppDataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
 
-      // Verify packet belongs to current user
-      const existingPacket = await packetRepository.findOne({
-        where: { id: packetId, userId },
-      });
+      try {
+        const packetRepository = queryRunner.manager.getRepository(Packet);
+        const itineraryDayRepository = queryRunner.manager.getRepository(ItineraryDay);
+        const markerRepository = queryRunner.manager.getRepository(Marker);
 
-      if (!existingPacket) {
-        return res
-          .status(404)
-          .json(
-            new PacketErrorResponseDto("Packet not found or access denied")
-          );
+        // 1. Verify packet belongs to current user
+        const existingPacket = await packetRepository.findOne({
+          where: { id: packetId, userId },
+        });
+
+        if (!existingPacket) {
+          await queryRunner.rollbackTransaction();
+          return res
+            .status(404)
+            .json(
+              new PacketErrorResponseDto("Packet not found or access denied")
+            );
+        }
+
+        // 2. Update packet basic info
+        Object.assign(existingPacket, {
+          name,
+          description: description || null,
+          cost: cost || null,
+          currencyCode: currencyCode || "USD",
+        });
+        const updatedPacket = await packetRepository.save(existingPacket);
+
+        // 3. Get existing itinerary days and markers for this packet
+        const existingItineraryDays = await itineraryDayRepository.find({
+          where: { packetId: packetId.toString() },
+        });
+        const existingItineraryDayIds = existingItineraryDays.map((day) => day.id);
+        const existingMarkers = await markerRepository.find({
+          where: { dayId: In(existingItineraryDayIds) },
+        });
+
+        // 4. Process itinerary days and markers
+        const allMarkers: any[] = [];
+        const processedItineraryDays: any[] = [];
+        const incomingItineraryDayIds: string[] = [];
+        const incomingMarkerIds: string[] = [];
+
+        itineraryDays.forEach((day: ItineraryDayDto, dayIndex: number) => {
+          // Generate new ID if not provided
+          const dayId = day.id || uuidV4();
+          incomingItineraryDayIds.push(dayId);
+
+          // Process markers for this day
+          day.markers?.forEach((marker: MarkerDto, markerIndex: number) => {
+            const markerId = marker.id || uuidV4();
+            incomingMarkerIds.push(markerId);
+
+            allMarkers.push({
+              id: markerId,
+              title: marker.title,
+              description: marker.description,
+              type: marker.type,
+              lng: marker.location.lng,
+              lat: marker.location.lat,
+              sortOrder: markerIndex,
+              dayId: dayId,
+              packetId: packetId.toString(),
+              userId,
+            });
+          });
+
+          processedItineraryDays.push({
+            id: dayId,
+            name: day.dayText || (day as any).name, // 兼容前端传入的 dayText 和从 GET 接口获取的 name
+            dayNumber: dayIndex + 1,
+            sortOrder: dayIndex,
+            description: day.description,
+            packetId: packetId.toString(),
+          });
+        });
+
+        // 5. Delete markers that are no longer in the incoming data
+        const markersToDelete = existingMarkers.filter(
+          (marker) => !incomingMarkerIds.includes(marker.id)
+        );
+        if (markersToDelete.length > 0) {
+          await markerRepository.remove(markersToDelete);
+        }
+
+        // 6. Delete itinerary days that are no longer in the incoming data
+        const itineraryDaysToDelete = existingItineraryDays.filter(
+          (day) => !incomingItineraryDayIds.includes(day.id)
+        );
+        if (itineraryDaysToDelete.length > 0) {
+          await itineraryDayRepository.remove(itineraryDaysToDelete);
+        }
+
+        // 7. Upsert itinerary days
+        if (processedItineraryDays.length > 0) {
+          for (const dayData of processedItineraryDays) {
+            const existingDay = existingItineraryDays.find(d => d.id === dayData.id);
+            if (existingDay) {
+              // Update existing
+              Object.assign(existingDay, dayData);
+              await itineraryDayRepository.save(existingDay);
+            } else {
+              // Create new
+              const newDay = itineraryDayRepository.create(dayData);
+              await itineraryDayRepository.save(newDay);
+            }
+          }
+        }
+
+        // 8. Upsert markers
+        if (allMarkers.length > 0) {
+          for (const markerData of allMarkers) {
+            const existingMarker = existingMarkers.find(m => m.id === markerData.id);
+            if (existingMarker) {
+              // Update existing
+              Object.assign(existingMarker, markerData);
+              await markerRepository.save(existingMarker);
+            } else {
+              // Create new
+              const newMarker = markerRepository.create(markerData);
+              await markerRepository.save(newMarker);
+            }
+          }
+        }
+
+        // Commit transaction
+        await queryRunner.commitTransaction();
+
+        res.json(
+          new PacketSingleResponseDto(
+            updatedPacket,
+            "Packet updated successfully"
+          )
+        );
+      } catch (error) {
+        // Rollback transaction on error
+        await queryRunner.rollbackTransaction();
+        throw error;
+      } finally {
+        // Release query runner
+        await queryRunner.release();
       }
-
-      // Update packet
-      Object.assign(existingPacket, updateData);
-      const updatedPacket = await packetRepository.save(existingPacket);
-
-      res.json(
-        new PacketSingleResponseDto(
-          updatedPacket,
-          "Packet updated successfully"
-        )
-      );
     } catch (error) {
       console.error("Error updating packet:", error);
       res
