@@ -18,6 +18,12 @@ export class Packet {
   @Column({ name: "user_id", type: "text", nullable: true })
   userId: string;
 
+  @Column({ name: "is_public", type: "boolean", nullable: true, default: false })
+  isPublic: boolean;
+
+  @Column({ name: "cover_img_url", type: "text", nullable: true })
+  coverImgUrl: string;
+
   @Column({ type: "text", nullable: true })
   description: string;
 

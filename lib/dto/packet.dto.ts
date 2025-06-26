@@ -6,6 +6,7 @@ import {
   IsObject,
   IsArray,
   IsNumber,
+  IsBoolean,
 } from "class-validator";
 import { Transform } from "class-transformer";
 
@@ -82,6 +83,14 @@ export class CreatePacketDto {
   @IsString({ message: "id must is string" })
   id?: string;
 
+  @IsOptional()
+  @IsBoolean({ message: "isPublic must is boolean" })
+  isPublic?: boolean;
+
+  @IsOptional()
+  @IsString({ message: "coverImgUrl must is string" })
+  coverImgUrl?: string;
+
   @IsNotEmpty({ message: "Packet name cannot be empty" })
   @IsString({ message: "Packet name must be a string" })
   @Length(1, 255, {
@@ -151,11 +160,13 @@ export class PacketResponseDto {
   currencyCode?: string;
   createdAt: Date;
   updatedAt: Date;
-  itineraryDays: any
+  itineraryDays: any;
+  coverImgUrl: string;
 
   constructor(packet: any) {
     this.id = packet.id;
     this.name = packet.name;
+    this.coverImgUrl = packet.coverImgUrl;
     this.userId = packet.userId;
     this.description = packet.description;
     this.cost = packet.cost;
