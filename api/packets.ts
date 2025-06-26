@@ -20,6 +20,7 @@ import {
 import { validationMiddleware } from "./middleware/validation";
 import { v4 as uuidV4 } from "uuid";
 import * as _ from "lodash";
+import { In } from "typeorm";
 
 const router: ExpressRouter = Router();
 
@@ -75,17 +76,36 @@ router.get("/:id", async (req: Request, res: Response) => {
     }
 
     const packetRepository = AppDataSource.getRepository(Packet);
+    const itineraryDayRepository = AppDataSource.getRepository(ItineraryDay);
+    const markerRepository = AppDataSource.getRepository(Marker);
 
     // Query specific packet, ensure it belongs to current user
     const userPacket = await packetRepository.findOne({
       where: { id: packetId, userId },
     });
 
-    if (!userPacket) {
+    const itineraryDays = await itineraryDayRepository.find({
+      where: { packetId: packetId.toString() },
+    });
+    const itineraryDaysIds = itineraryDays.map((day) => day.id);
+
+    const markers = await markerRepository.find({
+      where: { dayId: In(itineraryDaysIds) },
+    });
+
+    if (!userPacket || !itineraryDays || !markers) {
       return res
         .status(404)
         .json(new PacketErrorResponseDto("Packet not found or access denied"));
     }
+
+
+    userPacket.itineraryDays = itineraryDays.map((itineraryDay)=> {
+      return {
+        ...itineraryDay,
+        markers: markers.filter((marker) => marker.dayId === itineraryDay.id),
+      }
+    })
 
     res.json(
       new PacketSingleResponseDto(

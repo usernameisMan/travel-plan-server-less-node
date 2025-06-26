@@ -151,6 +151,7 @@ export class PacketResponseDto {
   currencyCode?: string;
   createdAt: Date;
   updatedAt: Date;
+  itineraryDays: any
 
   constructor(packet: any) {
     this.id = packet.id;
@@ -161,6 +162,7 @@ export class PacketResponseDto {
     this.currencyCode = packet.currencyCode;
     this.createdAt = packet.createdAt;
     this.updatedAt = packet.updatedAt;
+    this.itineraryDays = packet.itineraryDays;
   }
 }
 
