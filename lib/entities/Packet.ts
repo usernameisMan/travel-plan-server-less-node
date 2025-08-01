@@ -39,6 +39,19 @@ export class Packet {
   @UpdateDateColumn({ name: "updated_at", type: "timestamp" })
   updatedAt: Date;
 
+  // Sharing fields
+  @Column({ name: "share_code", type: "text", nullable: true, unique: true })
+  shareCode: string;
+
+  @Column({ name: "share_type", type: "text", nullable: true, default: "private" })
+  shareType: string; // 'private', 'free', 'paid'
+
+  @Column({ name: "share_enabled_at", type: "timestamp", nullable: true })
+  shareEnabledAt: Date;
+
+  @Column({ name: "share_views", type: "integer", nullable: true, default: 0 })
+  shareViews: number;
+
   // Relationship - using string reference to avoid circular dependency
   @OneToMany("ItineraryDay", "packet")
   itineraryDays: any[];
@@ -48,4 +61,7 @@ export class Packet {
 
   @OneToMany("PacketFavorites", "packet")
   favorites: any[];
+
+  @OneToMany("PacketShareAccess", "packet")
+  shareAccess: any[];
 } 

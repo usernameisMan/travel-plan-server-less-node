@@ -4,6 +4,7 @@ import express, { Express } from "express";
 import { checkJwt, handleAuthError, extractUser } from "./middleware/auth";
 import { requestLoggingMiddleware, errorLoggingMiddleware } from "./middleware/logging";
 import packetsRouter from "./packets";
+import sharedRouter from "./shared";
 import { initializeDatabase } from "../lib/data-source";
 
 const app: Express = express();
@@ -39,12 +40,15 @@ app.use((req, res, next) => {
   next();
 });
 
-// Apply Auth0 middleware to all routes
+app.get("/", (req, res) => res.send("Express on Vercel with TypeORM!"));
+
+// Register shared routes (no authentication required)
+app.use("/api/shared", sharedRouter);
+
+// Apply Auth0 middleware to authenticated routes
 app.use(checkJwt);
 app.use(extractUser); // Extract user information
 app.use(handleAuthError);
-
-app.get("/", (req, res) => res.send("Express on Vercel with TypeORM!"));
 
 // Example route: demonstrate how to get user ID
 app.get("/user/profile", (req, res) => {
@@ -62,7 +66,7 @@ app.get("/user/profile", (req, res) => {
   });
 });
 
-// Register packets routes
+// Register packets routes (authentication required)
 app.use("/api/packets", packetsRouter);
 
 // Error logging middleware - must be after all routes

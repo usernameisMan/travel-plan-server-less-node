@@ -1,0 +1,332 @@
+---
+description: Travel Plan Server - 旅行规划平台后端开发规范
+globs: ["**/*.ts", "**/*.js", "**/*.json", "**/*.md"]
+alwaysApply: true
+---
+
+# Travel Plan Server 开发规范
+
+## 项目概述
+这是一个基于 Node.js 的无服务器旅行规划平台，支持用户创建、分享和购买旅行包。
+
+### 核心功能
+- 旅行包创建和管理 (Packets)
+- 行程规划 (Itinerary Days) 
+- 地点标记 (Markers)
+- 用户认证和授权
+- 内容分享和商业化
+- 支付和订单管理
+
+## 技术栈规范
+
+### 后端架构
+- **运行时**: Node.js + TypeScript
+- **框架**: Express.js
+- **ORM**: TypeORM
+- **认证**: Auth0 JWT
+- **数据库**: Neon PostgreSQL
+- **部署**: Vercel Serverless
+
+### 前端集成
+- **前端框架**: Next.js (localhost:3000)
+- **通信**: RESTful API + JSON
+
+## 数据库设计规范
+
+### 命名约定
+- **表名**: 使用单数形式 (`packet`, `marker`, `user`)
+- **字段名**: 使用 snake_case (`user_id`, `created_at`)
+- **主键**: 优先使用 `id` (integer) 或 UUID (text)
+- **外键**: 使用 `表名_id` 格式
+
+### 数据库环境
+- **开发环境**: development 分支 -> travel-plan 数据库
+- **生产环境**: production 分支 -> neondb 数据库
+- **项目ID**: snowy-firefly-19991504
+
+### 核心表结构
+```sql
+-- 旅行包主表
+packet: id(int), name(text), user_id(text), description(text), 
+        cost(numeric), currency_code(text), is_public(boolean)
+
+-- 行程日表  
+itinerary_day: id(text/uuid), name(text), packet_id(text), 
+               day_number(text), description(text), sort_order(int)
+
+-- 地点标记表
+marker: id(uuid), title(text), type(text), lng(text), lat(text), 
+        day_id(text), sort_order(int)
+```
+
+## API 设计规范
+
+### 路由结构
+```
+GET    /api/packets              # 获取用户旅行包列表
+GET    /api/packets/:id          # 获取单个旅行包
+POST   /api/packets              # 创建旅行包
+PUT    /api/packets/:id          # 更新旅行包
+DELETE /api/packets/:id          # 删除旅行包 (级联删除)
+GET    /api/packets/:id/with-itinerary  # 获取完整行程数据
+POST   /api/packets/with-itinerary      # 创建包含行程的旅行包
+```
+
+### 响应格式
+```typescript
+// 成功响应
+{
+  success: true,
+  data: T,
+  message: string,
+  count?: number  // 列表接口
+}
+
+// 错误响应  
+{
+  success: false,
+  message: string,
+  error?: any     // 开发环境
+}
+```
+
+### 认证机制
+- 使用 Auth0 JWT Bearer Token
+- 从 `req.user.sub` 获取用户ID
+- 所有业务接口都需要认证
+- 用户ID 格式: `google-oauth2|107624379288487963463`
+
+## 代码规范
+
+### TypeScript 配置
+- 严格模式开启
+- 使用接口 (interface) 而非类型别名
+- 避免使用 `any`，优先使用具体类型
+
+### 文件结构
+```
+api/                    # API 路由
+├── middleware/         # 中间件
+├── packets.ts         # 旅行包相关接口
+└── index.ts           # 入口文件
+
+lib/                   # 核心库文件
+├── entities/          # TypeORM 实体
+├── dto/              # 数据传输对象
+└── data-source.ts    # 数据库连接
+
+docs/                 # 项目文档
+```
+
+### 实体设计模式
+```typescript
+@Entity("table_name")
+export class EntityName {
+  @PrimaryColumn()
+  id: string;
+  
+  @Column({ name: "field_name", nullable: true })
+  fieldName: string;
+  
+  @CreateDateColumn({ name: "created_at" })
+  createdAt: Date;
+  
+  @UpdateDateColumn({ name: "updated_at" })  
+  updatedAt: Date;
+}
+```
+
+### DTO 设计模式
+```typescript
+export class CreateEntityDto {
+  @IsNotEmpty()
+  @IsString()
+  name: string;
+  
+  @IsOptional()
+  @IsString()
+  description?: string;
+}
+
+export class EntityResponseDto {
+  success: boolean;
+  data: EntityData;
+  message: string;
+  
+  constructor(entity: Entity, message: string) {
+    this.success = true;
+    this.data = new EntityData(entity);
+    this.message = message;
+  }
+}
+```
+
+## 业务逻辑规范
+
+### 数据库事务
+- 涉及多表操作必须使用事务
+- 使用 QueryRunner 进行事务管理
+- 错误时自动回滚
+
+```typescript
+const queryRunner = AppDataSource.createQueryRunner();
+await queryRunner.connect();
+await queryRunner.startTransaction();
+
+try {
+  // 业务操作
+  await queryRunner.commitTransaction();
+} catch (error) {
+  await queryRunner.rollbackTransaction();
+  throw error;
+} finally {
+  await queryRunner.release();
+}
+```
+
+### 级联删除策略
+- 删除 packet → 删除相关 itinerary_day → 删除相关 marker
+- 删除顺序: markers → itinerary_days → packet
+- 确保不留孤立数据
+
+### 字段映射规范
+- 前端 `dayText` → 数据库 `name` (itinerary_day)
+- 前端 `day` → 数据库 `day_number`
+- 兼容 GET 和 POST 的不同字段名
+
+```typescript
+// 兼容性处理
+name: day.dayText || (day as any).name
+```
+
+## 错误处理规范
+
+### 错误类型
+- 401: 认证失败
+- 403: 权限不足  
+- 404: 资源不存在
+- 400: 请求参数错误
+- 500: 服务器内部错误
+
+### 调试日志
+```typescript
+console.log("🔍 Processing:", data);
+console.log("✅ Success:", result);  
+console.error("❌ Error:", error);
+```
+
+### 开发环境日志
+- 生产环境不暴露具体错误信息
+- 开发环境返回完整错误堆栈
+
+## 安全规范
+
+### 数据访问控制
+- 所有业务数据必须校验 `userId`
+- 不允许跨用户数据访问
+- SQL 查询必须包含用户过滤条件
+
+```typescript
+const userPackets = await packetRepository.find({
+  where: { userId },  // 必须包含用户过滤
+  order: { createdAt: "DESC" }
+});
+```
+
+### 输入验证
+- 使用 class-validator 进行参数验证
+- 必要的字段使用 `@IsNotEmpty()`
+- 可选字段使用 `@IsOptional()`
+
+## 分享功能设计
+
+### 概述
+完整的旅行包分享功能，支持免费分享和付费分享两种模式。详细设计方案请参考：`docs/sharing-feature-design.md`
+
+### 核心功能
+- **免费分享**: 用户可以免费分享旅行包，任何人都可以查看完整内容
+- **付费分享**: 用户设置价格，访问者需要购买才能查看完整内容
+- **预览模式**: 付费内容提供预览，显示部分行程吸引购买
+- **分享统计**: 浏览量、购买量、收入等数据统计
+- **社交传播**: 支持生成二维码和各种社交平台分享
+
+### 数据库扩展
+```sql
+-- 扩展 packet 表
+ALTER TABLE packet ADD COLUMN share_code TEXT UNIQUE;
+ALTER TABLE packet ADD COLUMN share_type TEXT DEFAULT 'private'; -- 'private'/'free'/'paid'
+ALTER TABLE packet ADD COLUMN share_price NUMERIC(10,2);
+ALTER TABLE packet ADD COLUMN share_enabled_at TIMESTAMP;
+ALTER TABLE packet ADD COLUMN share_views INTEGER DEFAULT 0;
+ALTER TABLE packet ADD COLUMN share_purchases INTEGER DEFAULT 0;
+
+-- 新增访问记录表
+CREATE TABLE packet_share_access (
+  id SERIAL PRIMARY KEY,
+  packet_id INTEGER REFERENCES packet(id),
+  share_code TEXT NOT NULL,
+  visitor_ip INET,
+  visitor_user_id TEXT,
+  access_type TEXT, -- 'view'/'purchase'
+  user_agent TEXT,
+  accessed_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+### 分享接口设计
+```
+# 分享管理
+POST   /api/packets/:id/share        # 开启分享
+PUT    /api/packets/:id/share        # 更新分享设置
+DELETE /api/packets/:id/share        # 关闭分享
+GET    /api/packets/:id/share/stats  # 获取分享统计
+
+# 分享访问
+GET    /api/shared/:share_code       # 访问分享内容
+POST   /api/shared/:share_code/purchase # 购买付费内容
+```
+
+### 实施优先级
+1. **P0**: 基础分享功能 (免费分享、分享码生成、访问验证)
+2. **P1**: 付费分享功能 (预览模式、支付集成、购买流程)
+3. **P2**: 用户体验优化 (统计面板、二维码、社交分享)
+4. **P3**: 高级功能 (推荐系统、评价反馈、数据分析)
+
+## 部署和环境
+
+### Vercel 配置
+- 函数超时: 10秒
+- 内存限制: 1024MB
+- 环境变量通过 Vercel Dashboard 配置
+
+### 环境变量
+```
+DATABASE_URL=        # Neon 数据库连接字符串
+AUTH0_AUDIENCE=      # Auth0 API 标识符
+AUTH0_ISSUER_BASE_URL= # Auth0 域名
+NODE_ENV=production  # 环境标识
+```
+
+## 开发工作流
+
+### 数据库开发须知
+- 你可以修改数据库的表但是只能做增量 不要删除字段或者表
+
+### 分支策略
+- development: 开发分支，包含最新功能,目前只使用development
+- production: 生产分支，稳定版本
+
+### 数据库访问
+- 开发调试优先使用 development 分支
+- 生产数据使用 production 分支
+- 使用 MCP Neon 工具进行数据库操作
+
+### 调试流程
+1. 添加详细日志
+2. 查看 Vercel Function Logs
+3. 使用 MCP 工具直接查询数据库
+4. 验证 JWT Token 有效性
+
+---
+
+遵循以上规范能确保代码质量、数据安全和系统稳定性。在开发新功能时，请严格按照这些规范执行。
