@@ -813,8 +813,10 @@ router.post(
 
       await packetRepository.save(packet);
 
-      // Get base URL from request or environment
-      const baseUrl = process.env.FRONTEND_URL || "https://yourapp.com";
+      // Get base URL from request headers
+      const protocol = req.headers['x-forwarded-proto'] || 'https';
+      const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost:3000';
+      const baseUrl = `${protocol}://${host}`;
 
       res.json(
         new ShareResponseDto(
