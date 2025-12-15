@@ -10,6 +10,7 @@ import { PaymentLog } from "./entities/PaymentLog";
 import { RefundLog } from "./entities/RefundLog";
 import { SellerPayout } from "./entities/SellerPayout";
 import { User } from "./entities/User";
+import { PacketShareAccess } from "./entities/PacketShareAccess";
 
 export const AppDataSource = new DataSource({
   type: "postgres",
@@ -27,6 +28,7 @@ export const AppDataSource = new DataSource({
     RefundLog,
     SellerPayout,
     User,
+    PacketShareAccess,
   ],
   migrations: ["lib/migrations/*.ts"],
   subscribers: ["lib/subscribers/*.ts"],
