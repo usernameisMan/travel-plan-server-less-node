@@ -20,16 +20,16 @@ export class PacketShareAccess {
   shareCode: string;
 
   @Column({ name: "visitor_ip", type: "inet", nullable: true })
-  visitorIp: string;
+  visitorIp: string | null;
 
   @Column({ name: "visitor_user_id", type: "text", nullable: true })
-  visitorUserId: string;
+  visitorUserId: string | null;
 
   @Column({ name: "access_type", type: "text", nullable: true })
-  accessType: string; // 'view', 'purchase'
+  accessType: string | null; // 'view', 'purchase'
 
   @Column({ name: "user_agent", type: "text", nullable: true })
-  userAgent: string;
+  userAgent: string | null;
 
   @CreateDateColumn({ name: "accessed_at", type: "timestamp" })
   accessedAt: Date;
