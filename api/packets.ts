@@ -6,7 +6,7 @@ import { ItineraryDay } from "../lib/entities/ItineraryDay";
 import { Marker } from "../lib/entities/Marker";
 import {
   CreatePacketDto,
-  UpdatePacketDto,
+  UpdatePacketWithItineraryDto,
   PacketListResponseDto,
   PacketSingleResponseDto,
   PacketErrorResponseDto,
@@ -36,6 +36,8 @@ router.get("/", async (req: Request, res: Response) => {
     }
 
     const packetRepository = AppDataSource.getRepository(Packet);
+    const itineraryDayRepository = AppDataSource.getRepository(ItineraryDay);
+    const markerRepository = AppDataSource.getRepository(Marker);
 
     // get all packets of current user from database
     const userPackets = await packetRepository.find({
@@ -43,7 +45,65 @@ router.get("/", async (req: Request, res: Response) => {
       order: { createdAt: "DESC" },
     });
 
-    res.json(new PacketListResponseDto(userPackets));
+    // Get packet IDs for batch query
+    const packetIds = userPackets.map((packet) => packet.id.toString());
+
+    // Batch query itinerary days for all packets
+    const itineraryDays = packetIds.length > 0
+      ? await itineraryDayRepository.find({
+          where: { packetId: In(packetIds) },
+        })
+      : [];
+
+    // Group itinerary days by packetId
+    const itineraryDaysByPacketId = itineraryDays.reduce((acc, day) => {
+      const packetId = day.packetId;
+      if (!acc[packetId]) {
+        acc[packetId] = [];
+      }
+      acc[packetId].push(day);
+      return acc;
+    }, {} as Record<string, typeof itineraryDays>);
+
+    // Get all day IDs for batch query markers
+    const dayIds = itineraryDays.map((day) => day.id);
+
+    // Batch query markers for all itinerary days
+    const markers = dayIds.length > 0
+      ? await markerRepository.find({
+          where: { dayId: In(dayIds) },
+        })
+      : [];
+
+    // Group markers by dayId
+    const markersByDayId = markers.reduce((acc, marker) => {
+      const dayId = marker.dayId;
+      if (!acc[dayId]) {
+        acc[dayId] = [];
+      }
+      acc[dayId].push(marker);
+      return acc;
+    }, {} as Record<string, typeof markers>);
+
+    // Calculate days and places for each packet
+    const packetsWithStats = userPackets.map((packet) => {
+      const packetIdStr = packet.id.toString();
+      const days = itineraryDaysByPacketId[packetIdStr]?.length || 0;
+      
+      // Calculate total places (markers) across all days
+      const dayIdsForPacket = itineraryDaysByPacketId[packetIdStr]?.map((day) => day.id) || [];
+      const places = dayIdsForPacket.reduce((total, dayId) => {
+        return total + (markersByDayId[dayId]?.length || 0);
+      }, 0);
+
+      return {
+        ...packet,
+        days,
+        places,
+      };
+    });
+
+    res.json(new PacketListResponseDto(packetsWithStats));
   } catch (error) {
     console.error("Error fetching user packets:", error);
     res
@@ -93,7 +153,7 @@ router.get("/:id", async (req: Request, res: Response) => {
       where: { dayId: In(itineraryDaysIds) },
     });
 
-    if (!userPacket || !itineraryDays || !markers) {
+    if (!userPacket) {
       return res
         .status(404)
         .json(new PacketErrorResponseDto("Packet not found or access denied"));
@@ -186,7 +246,7 @@ router.post(
             return {
               ...day,
               name:day.dayText,
-              dayNumber: index + 1,
+              dayNumber: (index + 1).toString(),
               sortOrder: index,
               packetId: savedPacket.id.toString(),
             };
@@ -232,7 +292,7 @@ router.post(
 // PUT /api/packets/:id - Update packet
 router.put(
   "/:id",
-  validationMiddleware(CreatePacketDto), // 使用 CreatePacketDto 因为需要完整的数据结构
+  validationMiddleware(UpdatePacketWithItineraryDto), // 使用 UpdatePacketWithItineraryDto 因为需要完整的数据结构包括 itineraryDays
   async (req: Request, res: Response) => {
     try {
       const userId = req.user?.sub;
@@ -326,7 +386,7 @@ router.put(
           processedItineraryDays.push({
             id: dayId,
             name: day.dayText || (day as any).name, // 兼容前端传入的 dayText 和从 GET 接口获取的 name
-            dayNumber: dayIndex + 1,
+            dayNumber: (dayIndex + 1).toString(),
             sortOrder: dayIndex,
             description: day.description,
             packetId: packetId.toString(),
@@ -430,26 +490,67 @@ router.delete("/:id", async (req: Request, res: Response) => {
         .json(new PacketErrorResponseDto("Invalid packet ID"));
     }
 
-    const packetRepository = AppDataSource.getRepository(Packet);
+    // Start database transaction for atomicity
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    // Verify packet belongs to current user
-    const existingPacket = await packetRepository.findOne({
-      where: { id: packetId, userId },
-    });
+    try {
+      const packetRepository = queryRunner.manager.getRepository(Packet);
+      const itineraryDayRepository = queryRunner.manager.getRepository(ItineraryDay);
+      const markerRepository = queryRunner.manager.getRepository(Marker);
 
-    if (!existingPacket) {
-      return res
-        .status(404)
-        .json(new PacketErrorResponseDto("Packet not found or access denied"));
+      // Verify packet belongs to current user
+      const existingPacket = await packetRepository.findOne({
+        where: { id: packetId, userId },
+      });
+
+      if (!existingPacket) {
+        await queryRunner.rollbackTransaction();
+        return res
+          .status(404)
+          .json(new PacketErrorResponseDto("Packet not found or access denied"));
+      }
+
+      // Get all itinerary days for this packet
+      const itineraryDays = await itineraryDayRepository.find({
+        where: { packetId: packetId.toString() },
+      });
+      const itineraryDayIds = itineraryDays.map((day) => day.id);
+
+      // Delete all markers associated with these itinerary days
+      if (itineraryDayIds.length > 0) {
+        const markers = await markerRepository.find({
+          where: { dayId: In(itineraryDayIds) },
+        });
+        if (markers.length > 0) {
+          await markerRepository.remove(markers);
+        }
+      }
+
+      // Delete all itinerary days
+      if (itineraryDays.length > 0) {
+        await itineraryDayRepository.remove(itineraryDays);
+      }
+
+      // Delete packet
+      await packetRepository.remove(existingPacket);
+
+      // Commit transaction
+      await queryRunner.commitTransaction();
+
+      res.json({
+        success: true,
+        message: "Packet deleted successfully",
+      });
+    } catch (error) {
+      // Rollback transaction on error
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      // Release query runner
+      await queryRunner.release();
     }
-
-    // Delete packet
-    await packetRepository.remove(existingPacket);
-
-    res.json({
-      success: true,
-      message: "Packet deleted successfully",
-    });
   } catch (error) {
     console.error("Error deleting packet:", error);
     res
