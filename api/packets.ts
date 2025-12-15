@@ -6,7 +6,7 @@ import { ItineraryDay } from "../lib/entities/ItineraryDay";
 import { Marker } from "../lib/entities/Marker";
 import {
   CreatePacketDto,
-  UpdatePacketDto,
+  UpdatePacketWithItineraryDto,
   PacketListResponseDto,
   PacketSingleResponseDto,
   PacketErrorResponseDto,
@@ -57,6 +57,8 @@ router.get("/", async (req: Request, res: Response) => {
 
     console.log("✅ Getting packet repository...");
     const packetRepository = AppDataSource.getRepository(Packet);
+    const itineraryDayRepository = AppDataSource.getRepository(ItineraryDay);
+    const markerRepository = AppDataSource.getRepository(Marker);
 
     console.log("🔍 Querying packets for userId:", userId);
     // get all packets of current user from database
@@ -73,8 +75,66 @@ router.get("/", async (req: Request, res: Response) => {
       createdAt: userPackets[0].createdAt
     } : "No packets");
 
+    // Get packet IDs for batch query
+    const packetIds = userPackets.map((packet) => packet.id.toString());
+
+    // Batch query itinerary days for all packets
+    const itineraryDays = packetIds.length > 0
+      ? await itineraryDayRepository.find({
+          where: { packetId: In(packetIds) },
+        })
+      : [];
+
+    // Group itinerary days by packetId
+    const itineraryDaysByPacketId = itineraryDays.reduce((acc, day) => {
+      const packetId = day.packetId;
+      if (!acc[packetId]) {
+        acc[packetId] = [];
+      }
+      acc[packetId].push(day);
+      return acc;
+    }, {} as Record<string, typeof itineraryDays>);
+
+    // Get all day IDs for batch query markers
+    const dayIds = itineraryDays.map((day) => day.id);
+
+    // Batch query markers for all itinerary days
+    const markers = dayIds.length > 0
+      ? await markerRepository.find({
+          where: { dayId: In(dayIds) },
+        })
+      : [];
+
+    // Group markers by dayId
+    const markersByDayId = markers.reduce((acc, marker) => {
+      const dayId = marker.dayId;
+      if (!acc[dayId]) {
+        acc[dayId] = [];
+      }
+      acc[dayId].push(marker);
+      return acc;
+    }, {} as Record<string, typeof markers>);
+
+    // Calculate days and places for each packet
+    const packetsWithStats = userPackets.map((packet) => {
+      const packetIdStr = packet.id.toString();
+      const days = itineraryDaysByPacketId[packetIdStr]?.length || 0;
+      
+      // Calculate total places (markers) across all days
+      const dayIdsForPacket = itineraryDaysByPacketId[packetIdStr]?.map((day) => day.id) || [];
+      const places = dayIdsForPacket.reduce((total, dayId) => {
+        return total + (markersByDayId[dayId]?.length || 0);
+      }, 0);
+
+      return {
+        ...packet,
+        days,
+        places,
+      };
+    });
+
     console.log("📋 Creating response DTO...");
-    const response = new PacketListResponseDto(userPackets);
+    const response = new PacketListResponseDto(packetsWithStats);
     console.log("✅ Response DTO created successfully");
     console.log("=== GET /api/packets Debug End ===");
 
@@ -133,7 +193,7 @@ router.get("/:id", async (req: Request, res: Response) => {
       where: { dayId: In(itineraryDaysIds) },
     });
 
-    if (!userPacket || !itineraryDays || !markers) {
+    if (!userPacket) {
       return res
         .status(404)
         .json(new PacketErrorResponseDto("Packet not found or access denied"));
@@ -226,7 +286,7 @@ router.post(
             return {
               ...day,
               name:day.dayText,
-              dayNumber: index + 1,
+              dayNumber: (index + 1).toString(),
               sortOrder: index,
               packetId: savedPacket.id.toString(),
             };
@@ -272,7 +332,7 @@ router.post(
 // PUT /api/packets/:id - Update packet
 router.put(
   "/:id",
-  validationMiddleware(CreatePacketDto), // 使用 CreatePacketDto 因为需要完整的数据结构
+  validationMiddleware(UpdatePacketWithItineraryDto), // 使用 UpdatePacketWithItineraryDto 因为需要完整的数据结构包括 itineraryDays
   async (req: Request, res: Response) => {
     try {
       const userId = req.user?.sub;
@@ -366,7 +426,7 @@ router.put(
           processedItineraryDays.push({
             id: dayId,
             name: day.dayText || (day as any).name, // 兼容前端传入的 dayText 和从 GET 接口获取的 name
-            dayNumber: dayIndex + 1,
+            dayNumber: (dayIndex + 1).toString(),
             sortOrder: dayIndex,
             description: day.description,
             packetId: packetId.toString(),

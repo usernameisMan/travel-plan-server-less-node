@@ -41,13 +41,13 @@ export class Packet {
 
   // Sharing fields
   @Column({ name: "share_code", type: "text", nullable: true, unique: true })
-  shareCode: string;
+  shareCode: string | null;
 
   @Column({ name: "share_type", type: "text", nullable: true, default: "private" })
   shareType: string; // 'private', 'free', 'paid'
 
   @Column({ name: "share_enabled_at", type: "timestamp", nullable: true })
-  shareEnabledAt: Date;
+  shareEnabledAt: Date | null;
 
   @Column({ name: "share_views", type: "integer", nullable: true, default: 0 })
   shareViews: number;

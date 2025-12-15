@@ -149,6 +149,36 @@ export class UpdatePacketDto {
   currencyCode?: string;
 }
 
+export class UpdatePacketWithItineraryDto {
+  @IsNotEmpty({ message: "Packet name cannot be empty" })
+  @IsString({ message: "Packet name must be a string" })
+  @Length(1, 255, {
+    message: "Packet name length must be between 1-255 characters",
+  })
+  name: string;
+
+  @IsOptional()
+  @IsString({ message: "Description must be a string" })
+  @Length(0, 1000, {
+    message: "Description length cannot exceed 1000 characters",
+  })
+  description?: string;
+
+  @IsOptional()
+  @IsString({ message: "Cost must be a string format number" })
+  @Transform(({ value }) => value?.toString())
+  cost?: string;
+
+  @IsOptional()
+  @IsString({ message: "Currency code must be a string" })
+  @Length(3, 3, { message: "Currency code must be 3 characters" })
+  currencyCode?: string;
+
+  @IsNotEmpty({ message: "ItineraryDayDto cannot be empty" })
+  @IsArray({ message: "ItineraryDayDto must be an array" })
+  itineraryDays: ItineraryDayDto[];
+}
+
 export class PacketResponseDto {
   id: number;
   name: string;
@@ -160,6 +190,8 @@ export class PacketResponseDto {
   updatedAt: Date;
   itineraryDays: any;
   coverImgUrl: string;
+  days?: number;
+  places?: number;
 
   constructor(packet: any) {
     this.id = packet.id;
@@ -172,6 +204,8 @@ export class PacketResponseDto {
     this.createdAt = packet.createdAt;
     this.updatedAt = packet.updatedAt;
     this.itineraryDays = packet.itineraryDays;
+    this.days = packet.days;
+    this.places = packet.places;
   }
 }
 
