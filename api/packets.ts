@@ -47,12 +47,18 @@ router.get("/", async (req: Request, res: Response) => {
         .json(new PacketErrorResponseDto("User not authenticated"));
     }
 
-    // Check if AppDataSource is initialized
+    // Ensure DB is ready — retry if cold-starting
     if (!AppDataSource.isInitialized) {
-      console.log("❌ AppDataSource not initialized");
-      return res
-        .status(500)
-        .json(new PacketErrorResponseDto("Database connection not initialized"));
+      console.log("⏳ AppDataSource not initialized, attempting reconnect...");
+      try {
+        const { initializeDatabase } = await import("../lib/data-source");
+        await initializeDatabase(3, 1500);
+      } catch (dbErr) {
+        console.error("❌ Database reconnect failed:", dbErr);
+        return res
+          .status(503)
+          .json(new PacketErrorResponseDto("Database temporarily unavailable, please retry"));
+      }
     }
 
     console.log("✅ Getting packet repository...");
