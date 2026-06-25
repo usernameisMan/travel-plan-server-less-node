@@ -12,6 +12,9 @@ import { z } from "zod/v3";
 
 const router: Router = express.Router();
 
+// ─── SSE helper ───────────────────────────────────────────────────────────────
+type SSEEmitter = (data: object) => void;
+
 // ─── Gaode REST geocoding ──────────────────────────────────────────────────────
 async function gaodeGeocode(
   address: string,
@@ -64,19 +67,24 @@ const routeSchema = z.object({
 const SYSTEM_PROMPT = `You are an expert travel planning assistant for PlanPinGo.
 Help users design detailed, practical travel itineraries with real, specific places.
 
-When a user asks for a travel route or itinerary:
-1. For EVERY place in the itinerary, call gaode_geocode to get accurate GCJ-02 coordinates.
-2. Design a logical daily itinerary with 3–6 places per day.
-3. Call submit_travel_route with the complete structured plan. Use ONLY coordinates returned by gaode_geocode — never estimate or invent coordinates.
-4. After calling submit_travel_route, write a warm, friendly summary describing the highlights.
+When a user asks for a travel route or itinerary, follow this EXACT 3-step process:
 
-Important rules:
-- You MUST call gaode_geocode for every single place before including it in submit_travel_route.
-- Use full, searchable place names (e.g. "故宫博物院" not "故宫").
-- If gaode_geocode returns an error for a place, skip that place or try a simplified name.
-- If the user asks to refine or adjust the route, re-geocode changed places and re-submit.
+STEP 1 — Plan all places first (no tool calls yet):
+Silently decide the complete list of places across all days (3–5 places per day max).
 
-When the user is just chatting or asking questions (not requesting a route), respond naturally without tools.`;
+STEP 2 — Geocode ALL places in ONE batch:
+Call gaode_geocode for EVERY place simultaneously in a single response. Do NOT geocode one-by-one — always send all geocode calls at the same time.
+
+STEP 3 — Submit and summarize:
+Call submit_travel_route with the full plan using ONLY the coordinates returned by gaode_geocode (never invent or estimate coordinates). Then write a warm, friendly summary.
+
+Rules:
+- ALWAYS batch all gaode_geocode calls into one response (parallel calls). This is critical for speed.
+- Use full, searchable place names in Chinese (e.g. "故宫博物院" not "故宫", "成都双流国际机场" not "成都机场").
+- If a geocode fails, try a simplified name or skip that place.
+- For refinement requests, only re-geocode changed places, then re-submit.
+
+When the user is just chatting (not requesting a route), respond naturally without tools.`;
 
 // ─── GCJ-02 → WGS-84 coordinate conversion ────────────────────────────────────
 function outOfChina(lng: number, lat: number): boolean {
@@ -137,15 +145,15 @@ function gcj02ToWgs84(lng: number, lat: number): [number, number] {
   return [lng * 2 - (lng + dLng), lat * 2 - (lat + dLat)];
 }
 
-// ─── Tool-calling agent loop ───────────────────────────────────────────────────
+// ─── Tool-calling agent loop with SSE streaming ────────────────────────────────
 async function runAgentLoop(
   model: ChatOpenAI,
   messages: BaseMessage[],
-  amapKey: string | undefined
-): Promise<{ reply: string; routeSuggestion: any | null }> {
+  amapKey: string | undefined,
+  emit: SSEEmitter
+): Promise<void> {
   let capturedRoute: any = null;
 
-  // Gaode geocode tool (HTTP, works in serverless)
   const geocodeTool = tool(
     async ({ address }: { address: string }) => {
       if (!amapKey) {
@@ -169,7 +177,6 @@ async function runAgentLoop(
     }
   );
 
-  // Submit route tool
   const submitRouteTool = tool(
     async (input: z.infer<typeof routeSchema>) => {
       capturedRoute = {
@@ -194,7 +201,6 @@ async function runAgentLoop(
 
   const tools = [geocodeTool, submitRouteTool];
   const modelWithTools = (model as any).bindTools(tools);
-
   const loopMessages = [...messages];
   const MAX_ITER = 20;
 
@@ -205,16 +211,24 @@ async function runAgentLoop(
     const toolCalls: any[] = response.tool_calls ?? [];
 
     if (toolCalls.length === 0) {
-      return {
-        reply:
-          typeof response.content === "string"
-            ? response.content
-            : JSON.stringify(response.content),
-        routeSuggestion: capturedRoute,
-      };
+      // Direct text response (casual chat or unexpected final)
+      const text =
+        typeof response.content === "string"
+          ? response.content
+          : JSON.stringify(response.content);
+      emit({ type: "text", content: text });
+      emit({ type: "route", routeSuggestion: capturedRoute });
+      return;
     }
 
+    let routeSubmittedThisIter = false;
+
     for (const tc of toolCalls) {
+      // Emit geocoding progress so frontend can show live status
+      if (tc.name === "gaode_geocode") {
+        emit({ type: "progress", message: tc.args?.address ?? "..." });
+      }
+
       const matched: any = tools.find((t: any) => t.name === tc.name);
       let result: string;
       if (matched) {
@@ -227,43 +241,75 @@ async function runAgentLoop(
       } else {
         result = `Unknown tool: ${tc.name}`;
       }
+
       loopMessages.push(
         new ToolMessage({
           content: result,
-          tool_call_id: tc.id ?? `call_${i}`,
+          tool_call_id: tc.id ?? `call_${i}_${tc.name}`,
           name: tc.name,
         })
       );
+
+      if (tc.name === "submit_travel_route") {
+        routeSubmittedThisIter = true;
+      }
+    }
+
+    // After route is submitted, stream the final summary text
+    if (routeSubmittedThisIter) {
+      const stream = await model.stream(loopMessages);
+      for await (const chunk of stream) {
+        const text =
+          typeof chunk.content === "string" ? chunk.content : "";
+        if (text) emit({ type: "text", content: text });
+      }
+      emit({ type: "route", routeSuggestion: capturedRoute });
+      return;
     }
   }
 
-  const finalResp = await model.invoke(loopMessages);
-  return {
-    reply:
-      typeof finalResp.content === "string"
-        ? finalResp.content
-        : JSON.stringify(finalResp.content),
-    routeSuggestion: capturedRoute,
-  };
+  // MAX_ITER fallback — stream whatever the model has to say
+  const stream = await model.stream(loopMessages);
+  for await (const chunk of stream) {
+    const text = typeof chunk.content === "string" ? chunk.content : "";
+    if (text) emit({ type: "text", content: text });
+  }
+  emit({ type: "route", routeSuggestion: capturedRoute });
 }
 
 // ─── POST /api/ai/chat ─────────────────────────────────────────────────────────
 router.post("/chat", async (req: Request, res: Response) => {
+  // SSE headers — must be set before any write
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  const emit: SSEEmitter = (data) => {
+    if (!res.writableEnded) {
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+    }
+  };
+
   try {
     const { messages } = req.body as {
       messages: Array<{ role: "user" | "assistant"; content: string }>;
     };
 
     if (!Array.isArray(messages) || messages.length === 0) {
-      res.status(400).json({ error: "messages array is required" });
+      emit({ type: "error", status: 400, message: "messages array is required" });
+      res.end();
       return;
     }
 
     if (!process.env.OPENAI_API_KEY) {
-      res.status(503).json({
-        error: "AI service not configured",
-        detail: "OPENAI_API_KEY is missing in backend .env",
+      emit({
+        type: "error",
+        status: 503,
+        message: "OPENAI_API_KEY is missing in backend environment",
       });
+      res.end();
       return;
     }
 
@@ -285,19 +331,19 @@ router.post("/chat", async (req: Request, res: Response) => {
       ),
     ];
 
-    const { reply, routeSuggestion } = await runAgentLoop(
+    await runAgentLoop(
       model,
       langchainMessages,
-      process.env.AMAP_MAPS_API_KEY
+      process.env.AMAP_MAPS_API_KEY,
+      emit
     );
 
-    res.json({ reply, routeSuggestion });
+    emit({ type: "done" });
   } catch (error: any) {
     console.error("[AI] chat error:", error);
-    res.status(500).json({
-      error: "AI service error",
-      detail: error?.message ?? "Unknown error",
-    });
+    emit({ type: "error", status: 500, message: error?.message ?? "Unknown error" });
+  } finally {
+    if (!res.writableEnded) res.end();
   }
 });
 
