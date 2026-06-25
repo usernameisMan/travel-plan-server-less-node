@@ -5,6 +5,7 @@ import { checkJwt, handleAuthError, extractUser } from "./middleware/auth";
 import { requestLoggingMiddleware, errorLoggingMiddleware } from "./middleware/logging";
 import packetsRouter from "./packets";
 import sharedRouter from "./shared";
+import aiRouter from "./ai";
 import { initializeDatabase } from "../lib/data-source";
 
 const app: Express = express();
@@ -68,6 +69,9 @@ app.get("/user/profile", (req, res) => {
 
 // Register packets routes (authentication required)
 app.use("/api/packets", packetsRouter);
+
+// Register AI routes (authentication required)
+app.use("/api/ai", aiRouter);
 
 // Error logging middleware - must be after all routes
 app.use(errorLoggingMiddleware);
