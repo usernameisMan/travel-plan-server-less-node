@@ -10,10 +10,9 @@ import { initializeDatabase } from "../lib/data-source";
 
 const app: Express = express();
 
-// Initialize database connection
+// Initialize database connection (non-fatal — routes handle DB not being ready)
 initializeDatabase().catch((error) => {
   console.error("Database initialization failed:", error);
-  process.exit(1);
 });
 
 // Body parsing middleware

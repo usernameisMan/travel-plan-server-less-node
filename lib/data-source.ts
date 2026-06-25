@@ -35,15 +35,22 @@ export const AppDataSource = new DataSource({
   ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
 });
 
-// Initialize data source
-export const initializeDatabase = async () => {
-  try {
-    if (!AppDataSource.isInitialized) {
+// Initialize data source with retry logic (handles Neon cold-start delays)
+export const initializeDatabase = async (retries = 5, delayMs = 2000) => {
+  if (AppDataSource.isInitialized) return;
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
       await AppDataSource.initialize();
       console.log("Database connection initialized successfully");
+      return;
+    } catch (error) {
+      lastError = error;
+      console.error(`Database init attempt ${attempt}/${retries} failed:`, error);
+      if (attempt < retries) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
     }
-  } catch (error) {
-    console.error("Database connection initialization failed:", error);
-    throw error;
   }
+  throw lastError;
 }; 
