@@ -30,20 +30,28 @@ export const checkJwt = auth({
 
 // Middleware to extract user information from JWT
 export const extractUser = async (req: Request, res: any, next: any) => {
-  const accessToken = req.headers.authorization?.split(" ")[1];
-  const response = await fetch(
-    "https://dev-jm3p0fl7ukqun2o5.us.auth0.com/userinfo",
-    {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    }
-  );
-  const userInfo = (await response.json()) as { [key: string]: any };
-
   try {
-    // The JWT payload is available in req.auth
     if (req.auth?.payload) {
+      const accessToken = req.headers.authorization?.split(" ")[1];
+      let userInfo: { [key: string]: any } = {};
+
+      try {
+        const response = await fetch(
+          "https://dev-jm3p0fl7ukqun2o5.us.auth0.com/userinfo",
+          {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          }
+        );
+        if (response.ok) {
+          userInfo = await response.json() as { [key: string]: any };
+        }
+      } catch (fetchError) {
+        // Fall back to JWT claims only if userinfo fetch fails (cold start, rate limit, etc.)
+        console.warn("Auth0 userinfo fetch failed, using JWT claims only:", fetchError);
+      }
+
       req.user = {
-        sub: req.auth.payload.sub as string, // This is the user ID
+        sub: req.auth.payload.sub as string,
         email: userInfo.email as string,
         nickname: userInfo.nickname as string,
         ...req.auth.payload,
