@@ -277,13 +277,19 @@ async function runAgentLoop(
   const MAX_ITER = 20;
 
   for (let i = 0; i < MAX_ITER; i++) {
+    // Tell the user the LLM is thinking
+    emit({
+      type: "stage",
+      message: i === 0 ? "🧠 正在理解需求并规划行程…" : "🧠 正在分析工具返回结果…",
+    });
+
     const response = await modelWithTools.invoke(loopMessages);
     loopMessages.push(response);
 
     const toolCalls: any[] = response.tool_calls ?? [];
 
     if (toolCalls.length === 0) {
-      // Direct text response (asking about transport mode, chatting, or final summary)
+      // Direct text (chatting, asking for transport mode, or unexpected final)
       const text =
         typeof response.content === "string"
           ? response.content
@@ -293,28 +299,47 @@ async function runAgentLoop(
       return;
     }
 
-    let routeSubmittedThisIter = false;
+    // Announce the batch of tool calls upfront so the user sees intent immediately
+    const geocodeCalls = toolCalls.filter((tc) => tc.name === "gaode_geocode");
+    const directionCalls = toolCalls.filter((tc) => tc.name === "gaode_direction");
+    const submitCalls = toolCalls.filter((tc) => tc.name === "submit_travel_route");
 
-    for (const tc of toolCalls) {
-      if (tc.name === "gaode_geocode") {
-        emit({ type: "progress", message: `📍 ${tc.args?.address ?? "..."}` });
-      } else if (tc.name === "gaode_direction") {
-        emit({ type: "progress", message: `🗺️ 规划路段…` });
-      }
+    if (geocodeCalls.length > 0) {
+      emit({ type: "stage", message: `📍 批量获取 ${geocodeCalls.length} 个地点坐标…` });
+    }
+    if (directionCalls.length > 0) {
+      emit({ type: "stage", message: `🗺️ 计算 ${directionCalls.length} 段路线时间…` });
+    }
+    if (submitCalls.length > 0) {
+      emit({ type: "stage", message: "📋 整理并提交完整路线…" });
+    }
 
-      const matched: any = tools.find((t: any) => t.name === tc.name);
-      let result: string;
-      if (matched) {
-        try {
-          const raw = await matched.invoke(tc.args);
-          result = typeof raw === "string" ? raw : JSON.stringify(raw);
-        } catch (err: any) {
-          result = `工具调用失败: ${err?.message ?? err}`;
+    // Execute all tool calls in parallel (geocoding & directions benefit greatly)
+    const toolResults = await Promise.all(
+      toolCalls.map(async (tc) => {
+        if (tc.name === "gaode_geocode") {
+          emit({ type: "progress", message: `📍 ${tc.args?.address ?? "..."}` });
         }
-      } else {
-        result = `未知工具: ${tc.name}`;
-      }
 
+        const matched: any = tools.find((t: any) => t.name === tc.name);
+        let result: string;
+        if (matched) {
+          try {
+            const raw = await matched.invoke(tc.args);
+            result = typeof raw === "string" ? raw : JSON.stringify(raw);
+          } catch (err: any) {
+            result = `工具调用失败: ${err?.message ?? err}`;
+          }
+        } else {
+          result = `未知工具: ${tc.name}`;
+        }
+        return { tc, result };
+      })
+    );
+
+    // Push ToolMessages in original order (LLM requires matched tool_call_id order)
+    let routeSubmittedThisIter = false;
+    for (const { tc, result } of toolResults) {
       loopMessages.push(
         new ToolMessage({
           content: result,
@@ -322,14 +347,12 @@ async function runAgentLoop(
           name: tc.name,
         })
       );
-
-      if (tc.name === "submit_travel_route") {
-        routeSubmittedThisIter = true;
-      }
+      if (tc.name === "submit_travel_route") routeSubmittedThisIter = true;
     }
 
     // Stream the final summary after route is submitted
     if (routeSubmittedThisIter) {
+      emit({ type: "stage", message: "✍️ 正在生成行程总结…" });
       const stream = await model.stream(loopMessages);
       for await (const chunk of stream) {
         const text = typeof chunk.content === "string" ? chunk.content : "";
@@ -341,6 +364,7 @@ async function runAgentLoop(
   }
 
   // MAX_ITER fallback
+  emit({ type: "stage", message: "✍️ 正在生成回复…" });
   const stream = await model.stream(loopMessages);
   for await (const chunk of stream) {
     const text = typeof chunk.content === "string" ? chunk.content : "";
