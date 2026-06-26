@@ -15,9 +15,9 @@ initializeDatabase().catch((error) => {
   console.error("Database initialization failed:", error);
 });
 
-// Body parsing middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Body parsing middleware — limit raised to handle base64 image payloads
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Request logging middleware - must be before other middleware
 app.use(requestLoggingMiddleware);
