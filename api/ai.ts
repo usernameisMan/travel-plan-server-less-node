@@ -120,6 +120,12 @@ const routeSchema = z.object({
 // ─── System prompt ─────────────────────────────────────────────────────────────
 const SYSTEM_PROMPT = `你是 PlanPinGo 的专业旅行规划助手，帮助用户设计详细、实用的出行行程。
 
+【最重要规则 — 工具必须真正调用】
+gaode_geocode、gaode_direction、submit_travel_route 都是必须通过「函数调用（tool call）」机制真正触发的工具，绝对不能只用文字描述。
+- 严禁说「正在获取坐标」「现在提交路线」之类的话却不发出对应的工具调用。
+- 没有调用 gaode_geocode 拿到真实坐标，就不能凭空编造经纬度。
+- 行程规划完成时，必须真正调用 submit_travel_route 把结构化路线提交给系统，否则前端无法在地图上展示——只说「已提交」是无效的，地图上不会出现任何东西。
+
 【第一步 — 确认交通方式】
 如果用户没有明确说明交通方式，必须先停下来询问，不得直接开始规划：
 
@@ -282,6 +288,12 @@ async function runAgentLoop(
   const loopMessages = [...messages];
   const MAX_ITER = 20;
 
+  // 模型偶尔会「用文字声称已查坐标/已提交路线」却不真正发出 tool call（DeepSeek 常见）。
+  // 用这两个标志做兜底：已查过坐标但没真正提交时，强制拉回去调用 submit_travel_route。
+  let hasGeocoded = false;
+  let nudgeCount = 0;
+  const MAX_NUDGES = 2;
+
   for (let i = 0; i < MAX_ITER; i++) {
     // Tell the user the LLM is thinking
     emit({
@@ -295,6 +307,20 @@ async function runAgentLoop(
     const toolCalls: any[] = response.tool_calls ?? [];
 
     if (toolCalls.length === 0) {
+      // 兜底：已经查过坐标却没真正提交路线 → 模型多半是「用文字声称已提交」却漏发了
+      // submit_travel_route 的 tool call。强制拉回去，不要把这段无效文字展示给用户。
+      if (!capturedRoute && hasGeocoded && nudgeCount < MAX_NUDGES) {
+        nudgeCount += 1;
+        emit({ type: "stage", message: "📋 整理并提交完整路线…" });
+        loopMessages.push(
+          new HumanMessage(
+            "你还没有真正调用 submit_travel_route 工具，仅靠文字描述无效，地图上不会出现任何路线。" +
+              "请立即通过函数调用（tool call）方式调用 submit_travel_route，坐标使用之前 gaode_geocode 返回的值。"
+          )
+        );
+        continue;
+      }
+
       // Direct text (chatting, asking for transport mode, or unexpected final)
       const text =
         typeof response.content === "string"
@@ -311,6 +337,7 @@ async function runAgentLoop(
     const submitCalls = toolCalls.filter((tc) => tc.name === "submit_travel_route");
 
     if (geocodeCalls.length > 0) {
+      hasGeocoded = true;
       emit({ type: "stage", message: `📍 批量获取 ${geocodeCalls.length} 个地点坐标…` });
     }
     if (directionCalls.length > 0) {
